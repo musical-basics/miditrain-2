@@ -123,23 +123,31 @@ export default function ETMEVisualizer() {
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, rollH); ctx.lineTo(canvasW, rollH); ctx.stroke();
 
-    for (let t = 0; t < maxTime; t += 500) {
+    for (let t = 0; t < maxTime; t += 100) {
       const x = t * effectiveScale;
-      // Vertical grid line
-      ctx.strokeStyle = t % 2000 === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)';
-      ctx.lineWidth = t % 2000 === 0 ? 1 : 0.5;
+      // Vertical grid lines: fine (100ms), semi-major (500ms), major (1000ms)
+      if (t % 1000 === 0) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 1;
+      } else if (t % 500 === 0) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+        ctx.lineWidth = 0.75;
+      } else {
+        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+        ctx.lineWidth = 0.5;
+      }
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, rollH); ctx.stroke();
 
       // Ruler tick marks
-      const isMajor = t % 4000 === 0;
-      const isMinor = t % 2000 === 0;
-      if (isMajor || isMinor) {
+      const isMajor = t % 1000 === 0;
+      const isMid = t % 500 === 0;
+      if (isMajor || isMid) {
         const tickH = isMajor ? 8 : 4;
         ctx.strokeStyle = 'rgba(255,255,255,0.2)';
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(x, rollH); ctx.lineTo(x, rollH + tickH); ctx.stroke();
       }
-      // Labels every 4s
+      // Labels every 1s
       if (isMajor) {
         ctx.font = '9px Inter';
         ctx.fillStyle = 'rgba(255,255,255,0.45)';
