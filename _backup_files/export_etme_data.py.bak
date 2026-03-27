@@ -9,7 +9,7 @@ import json
 import math
 from symusic import Score
 from particle import Particle
-from harmonic_regime_detector import HarmonicRegimeDetector, SEMITONE_MAP, INTERVAL_ANGLES
+from STS_bootstrapper import HarmonicRegimeDetector, SEMITONE_MAP, INTERVAL_ANGLES
 from information_density import InformationDensityScanner
 
 # Map MIDI pitch class (0-11) to interval names for the regime detector
