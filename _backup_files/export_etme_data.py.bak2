@@ -141,7 +141,7 @@ def midi_to_particles(midi_path):
 
 def extract_keyframes(midi_path):
     """Convert MIDI into keyframes for the HarmonicRegimeDetector.
-    Returns list of (time_ms, [(interval_name, octave, velocity, duration_ms), ...])
+    Returns list of (time_ms, [(interval_name, octave, velocity), ...])
     """
     score = Score(midi_path)
     tpq = score.ticks_per_quarter
@@ -153,10 +153,9 @@ def extract_keyframes(midi_path):
             time_ms = int(note.start * tick_to_ms)
             interval = PC_TO_INTERVAL[note.pitch % 12]
             octave = note.pitch // 12
-            duration_ms = int(note.duration * tick_to_ms)
             if time_ms not in time_map:
                 time_map[time_ms] = []
-            time_map[time_ms].append((interval, octave, note.velocity, duration_ms))
+            time_map[time_ms].append((interval, octave, note.velocity))
 
     return [(t, time_map[t]) for t in sorted(time_map.keys())]
 
@@ -168,26 +167,26 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
     print(f"  Loaded {len(particles)} particles, {len(keyframes)} keyframes")
 
     # =============================================
-    # Phase 1: HarmonicRegimeDetector V2 (Limbo State Machine)
+    # Phase 1: HarmonicRegimeDetector (from STS_bootstrapper)
     # =============================================
-    print("Running Phase 1: Harmonic Regime Detector (Limbo V2)...")
-    detector = HarmonicRegimeDetector(break_angle=45.0, min_break_mass=1.2, merge_angle=30.0)
+    print("Running Phase 1: Harmonic Regime Detector...")
+    detector = HarmonicRegimeDetector(buffer_ms=300, debounce_ms=150)
 
-    # Process all frames at once (batch — enables retroactive re-tagging)
-    regime_frames = detector.process(keyframes)
+    regime_frames = []
+    for time_ms, notes in keyframes:
+        frame = detector.process_frame(time_ms, notes)
+        regime_frames.append(frame)
 
-    # Build contiguous regime blocks using Regime_ID (not State string)
+    # Build contiguous regime blocks from consecutive same-state frames
     regimes = []
     current_regime = None
     for frame in regime_frames:
-        rid = frame["Regime_ID"]
         state = frame["State"]
-        if current_regime is None or current_regime.get("id") != rid:
+        if current_regime is None or current_regime["state"] != state:
             if current_regime:
                 current_regime["end_time"] = frame["Time (ms)"]
                 regimes.append(current_regime)
             current_regime = {
-                "id": rid,
                 "start_time": frame["Time (ms)"],
                 "end_time": frame["Time (ms)"],
                 "state": state,
@@ -198,13 +197,24 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
         else:
             # Update with latest values within the same regime
             current_regime["end_time"] = frame["Time (ms)"]
-            # Prioritize visually stable states if it settles
-            if state in ["Stable", "Regime Locked"]:
-                current_regime["state"] = state
+            current_regime["hue"] = frame["Hue"]
+            current_regime["saturation"] = frame["Sat (%)"]
     if current_regime:
         # Extend last regime to cover the last note
         current_regime["end_time"] = particles[-1].onset + particles[-1].duration
         regimes.append(current_regime)
+
+    # ---- Consolidation: merge micro-regimes (< 100ms) into neighbors ----
+    MIN_REGIME_MS = 100
+    consolidated = []
+    for r in regimes:
+        dur = r["end_time"] - r["start_time"]
+        if dur < MIN_REGIME_MS and consolidated:
+            # Absorb into the previous regime
+            consolidated[-1]["end_time"] = r["end_time"]
+        else:
+            consolidated.append(r)
+    regimes = consolidated
 
     print(f"  Detected {len(regimes)} harmonic regimes (after consolidation)")
     state_counts = {}
