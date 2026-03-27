@@ -86,12 +86,11 @@ export default function ETMEVisualizer() {
     const pitchRange = PITCH_MAX - PITCH_MIN + 1;
 
     const maxTime = Math.max(...notes.map(n => n.onset + n.duration)) + 500;
-    const rawW = maxTime * msPxInput;
-    const canvasW = Math.min(Math.max(rawW, 1200), MAX_CANVAS_PX);
+    const effectiveScale = msPxInput;
+    effectiveScaleRef.current = effectiveScale;
+    const canvasW = Math.min(Math.max(maxTime * effectiveScale, 1200), MAX_CANVAS_PX);
     const rollH = pitchRange * noteHeight;
     const canvasH = rollH + RULER_HEIGHT;
-    const effectiveScale = canvasW / maxTime;
-    effectiveScaleRef.current = effectiveScale;
 
     const dpr = window.devicePixelRatio || 1;
     canvas.width = canvasW * dpr;
