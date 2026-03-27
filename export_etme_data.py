@@ -9,7 +9,7 @@ import json
 import math
 from symusic import Score
 from particle import Particle
-from harmonic_regime_detector import HarmonicRegimeDetector, SEMITONE_MAP, INTERVAL_ANGLES
+from harmonic_regime_detector import HarmonicRegimeDetector, SEMITONE_MAP, ANGLE_MAPS, INTERVAL_ANGLES_DISSONANCE
 from information_density import InformationDensityScanner
 
 # Map MIDI pitch class (0-11) to interval names for the regime detector
@@ -19,13 +19,15 @@ PC_TO_INTERVAL = {
 }
 
 
-def calculate_weighted_chord_color(notes):
+def calculate_weighted_chord_color(notes, interval_angles=None):
     """
     Calculates HSL color and tension of a chord using MIDI velocity weighting.
     'notes' is a list of tuples: [("interval", octave, velocity_0_to_127), ...]
     
     Returns dict with Hue, Saturation, Lightness, Tonal Distance.
     """
+    if interval_angles is None:
+        interval_angles = INTERVAL_ANGLES_DISSONANCE
     x_total = 0.0
     y_total = 0.0
     lightness_weighted_total = 0.0
@@ -40,7 +42,7 @@ def calculate_weighted_chord_color(notes):
         weight_total += weight
 
         # Vector coordinates (Hue & Saturation)
-        angle_rad = math.radians(INTERVAL_ANGLES[interval])
+        angle_rad = math.radians(interval_angles[interval])
         x_total += weight * math.cos(angle_rad)
         y_total += weight * math.sin(angle_rad)
 
@@ -74,7 +76,7 @@ def calculate_weighted_chord_color(notes):
     }
 
 
-def compute_rolling_color(onset_ms, all_particles, regime_start_ms):
+def compute_rolling_color(onset_ms, all_particles, regime_start_ms, interval_angles=None):
     """
     Calculates the weighted chord color using active notes.
     Completely truncates any contributing notes that happened before
@@ -83,6 +85,8 @@ def compute_rolling_color(onset_ms, all_particles, regime_start_ms):
     
     Lookahead (50ms) prevents 'color tearing' from human MIDI arpeggiation.
     """
+    if interval_angles is None:
+        interval_angles = INTERVAL_ANGLES_DISSONANCE
     lookahead = onset_ms + 50
     active_notes = []
 
@@ -106,7 +110,7 @@ def compute_rolling_color(onset_ms, all_particles, regime_start_ms):
     if not active_notes:
         return {"hue": 0.0, "sat": 0.0, "lightness": 0.0, "tonal_distance": 0.0}
 
-    return calculate_weighted_chord_color(active_notes)
+    return calculate_weighted_chord_color(active_notes, interval_angles)
 
 
 def midi_to_particles(midi_path):
@@ -173,17 +177,20 @@ def extract_keyframes(midi_path, group_window_ms=50):
     return keyframes
 
 
-def export_analysis(midi_path, output_json="etme_analysis.json"):
+def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='dissonance'):
     print(f"Loading MIDI: {midi_path}")
+    print(f"  Angle map: {angle_map}")
     particles = midi_to_particles(midi_path)
     keyframes = extract_keyframes(midi_path)
     print(f"  Loaded {len(particles)} particles, {len(keyframes)} keyframes")
+
+    interval_angles = ANGLE_MAPS.get(angle_map, INTERVAL_ANGLES_DISSONANCE)
 
     # =============================================
     # Phase 1: HarmonicRegimeDetector V2 (Limbo State Machine)
     # =============================================
     print("Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...")
-    detector = HarmonicRegimeDetector(break_angle=40.0, min_break_mass=0.8, merge_angle=25.0)
+    detector = HarmonicRegimeDetector(break_angle=40.0, min_break_mass=0.8, merge_angle=25.0, angle_map=angle_map)
 
     # Process all frames at once (batch — enables retroactive re-tagging)
     regime_frames = detector.process(keyframes)
@@ -277,7 +284,7 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
         regime_start = get_regime_start(p.onset)
 
         # Hard truncate old resonance at regime boundary
-        color = compute_rolling_color(p.onset, particles, regime_start)
+        color = compute_rolling_color(p.onset, particles, regime_start, interval_angles)
 
         # Regime state from detector (for state-based styling like Spike/Locked)
         closest_frame = min(frame_lookup, key=lambda f: abs(f["time"] - p.onset))
@@ -330,4 +337,6 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
 
 
 if __name__ == "__main__":
-    export_analysis("pathetique_2_test.mid")
+    export_analysis("pathetique_2_test.mid", output_json="etme_analysis.json", angle_map='dissonance')
+    print("\n" + "="*50 + "\n")
+    export_analysis("pathetique_2_test.mid", output_json="etme_analysis_fifths.json", angle_map='fifths')

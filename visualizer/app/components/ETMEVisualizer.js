@@ -49,19 +49,21 @@ export default function ETMEVisualizer() {
 
   const [data, setData] = useState(null);
   const [currentView, setCurrentView] = useState('raw');
+  const [angleMap, setAngleMap] = useState('dissonance');
   const [hZoom, setHZoom] = useState(10);
   const [vZoom, setVZoom] = useState(10);
   const [tooltip, setTooltip] = useState(null);
 
   const effectiveScaleRef = useRef(0.05);
 
-  // Load data on mount
+  // Load data when angleMap changes
   useEffect(() => {
-    fetch(`/etme_analysis.json?t=${Date.now()}`)
+    const file = angleMap === 'fifths' ? 'etme_analysis_fifths.json' : 'etme_analysis.json';
+    fetch(`/${file}?t=${Date.now()}`)
       .then(r => r.json())
       .then(setData)
       .catch(err => console.error('Failed to load data:', err));
-  }, []);
+  }, [angleMap]);
 
   // Sync scroll between keyboard and canvas
   useEffect(() => {
@@ -385,6 +387,18 @@ export default function ETMEVisualizer() {
             {v.label}
           </button>
         ))}
+        <select
+          value={angleMap}
+          onChange={e => setAngleMap(e.target.value)}
+          style={{
+            marginLeft: 'auto', padding: '4px 8px', fontSize: '11px',
+            background: '#1a1a2e', color: '#e0e0e0', border: '1px solid #333',
+            borderRadius: '4px', cursor: 'pointer'
+          }}
+        >
+          <option value="dissonance">Default Dissonance Map</option>
+          <option value="fifths">Standard Circle of 5ths</option>
+        </select>
       </div>
 
       {/* ZOOM */}

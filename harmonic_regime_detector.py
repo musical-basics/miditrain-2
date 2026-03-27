@@ -7,10 +7,23 @@ import math
 # from passing notes. Merged notes contribute to the regime's final color
 # but CANNOT drift the anchor centroid. This prevents Centroid Drift.
 
-INTERVAL_ANGLES = {
+INTERVAL_ANGLES_DISSONANCE = {
     "1": 0, "b2": 180, "2": 120, "b3": 270, "3": 60, "4": 330,
     "#4": 210, "5": 30, "b6": 300, "6": 90, "b7": 240, "7": 150
 }
+
+# Standard Circle of Fifths: each step = perfect 5th (30°)
+# C→G→D→A→E→B→F#→Db→Ab→Eb→Bb→F
+INTERVAL_ANGLES_FIFTHS = {
+    "1": 0, "5": 30, "2": 60, "6": 90, "3": 120, "7": 150,
+    "#4": 180, "b2": 210, "b6": 240, "b3": 270, "b7": 300, "4": 330
+}
+
+ANGLE_MAPS = {
+    'dissonance': INTERVAL_ANGLES_DISSONANCE,
+    'fifths': INTERVAL_ANGLES_FIFTHS,
+}
+
 SEMITONE_MAP = {
     "1": 0, "b2": 1, "2": 2, "b3": 3, "3": 4, "4": 5,
     "#4": 6, "5": 7, "b6": 8, "6": 9, "b7": 10, "7": 11
@@ -26,16 +39,17 @@ class HarmonicRegimeDetector:
 
     Args:
         break_angle:    Minimum angular divergence (degrees) to trigger a
-                        regime break. Lowered to 20° for tight progressions.
+                        regime break.
         min_break_mass: Minimum accumulated mass in the pending group.
         merge_angle:    Maximum angular divergence for harmonically compatible merge.
+        angle_map:      'dissonance' (default) or 'fifths' (standard circle of 5ths).
     """
 
-    # Tuned for sharp regime transitions while isolating the anchor
-    def __init__(self, break_angle=40.0, min_break_mass=0.8, merge_angle=25.0):
+    def __init__(self, break_angle=40.0, min_break_mass=0.8, merge_angle=25.0, angle_map='dissonance'):
         self.break_angle = break_angle
         self.min_break_mass = min_break_mass
         self.merge_angle = merge_angle
+        self.interval_angles = ANGLE_MAPS.get(angle_map, INTERVAL_ANGLES_DISSONANCE)
 
     # ------------------------------------------------------------------
     # Vector math helpers
@@ -87,7 +101,7 @@ class HarmonicRegimeDetector:
             particles = []
             for n in notes:
                 interval, octave, velocity = n[0], n[1], n[2]
-                angle = INTERVAL_ANGLES.get(interval, 0)
+                angle = self.interval_angles.get(interval, 0)
                 base_mass = velocity / 127.0
 
                 # 1. Linear Duration Boost (no squaring — prevents crushing fast chords)
