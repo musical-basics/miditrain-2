@@ -94,18 +94,32 @@ class HarmonicRegimeDetector:
             particles = []
             for n in notes:
                 interval = n[0]
+                octave = n[1]
                 velocity = n[2]
                 angle = INTERVAL_ANGLES.get(interval, 0)
 
-                # Incorporate duration weighting if a 4th element is present
+                # Base mass from velocity
+                base_mass = velocity / 127.0
+
+                # Duration boost: longer notes contribute dramatically more
+                # Square the factor so a half note (2s) = 4× a quarter (1s)
                 if len(n) >= 4:
                     dur_factor = max(0.5, min(n[3] / 1000.0, 2.0))
-                    mass = (velocity / 127.0) * dur_factor
+                    dur_boost = dur_factor ** 2  # 0.25 → 4.0
                 else:
-                    mass = velocity / 127.0
+                    dur_boost = 1.0
+
+                # Register boost: U-shaped curve centered at octave 4
+                # Bass (oct 2-3) and treble (oct 5-6) get 1.5-2× more mass
+                # Middle (oct 4) gets 1.0× — passing tones live here
+                distance_from_center = abs(octave - 4)
+                register_boost = 1.0 + (distance_from_center * 0.5)  # oct2=2.0, oct3=1.5, oct4=1.0, oct5=1.5, oct6=2.0
+
+                mass = base_mass * dur_boost * register_boost
 
                 particles.append({
                     'interval': interval,
+                    'octave': octave,
                     'angle': angle,
                     'mass': mass,
                     'time': time_ms
@@ -118,7 +132,7 @@ class HarmonicRegimeDetector:
                     'regime_id': current_regime_id,
                     'state': 'Regime Locked',
                     'debug': {'diff': 0, 'pmass': 0, 'rmass': 0, 'threshold': 0,
-                              'particles': [{'interval': p['interval'], 'mass': round(p['mass'], 3), 'angle': p['angle']} for p in particles]}
+                              'particles': [{'interval': p['interval'], 'octave': p['octave'], 'mass': round(p['mass'], 3), 'angle': p['angle']} for p in particles]}
                 }
                 continue
 
@@ -142,7 +156,7 @@ class HarmonicRegimeDetector:
                 'pmass': round(pmass, 3),
                 'rmass': round(rmass, 3),
                 'threshold': self.min_break_mass,
-                'particles': [{'interval': p['interval'], 'mass': round(p['mass'], 3), 'angle': p['angle']} for p in particles]
+                'particles': [{'interval': p['interval'], 'octave': p['octave'], 'mass': round(p['mass'], 3), 'angle': p['angle']} for p in particles]
             }
 
             # ─── CASE 1: REGIME BREAK ───────────────────────────
