@@ -210,12 +210,10 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
         else:
             # Update with latest values within the same regime
             current_regime["end_time"] = frame["Time (ms)"]
-            # CRITICAL FIX: Do not overwrite a Spike state with a Stable state!
-            if current_regime["state"] != "TRANSITION SPIKE!":
-                if state in ["Stable", "Regime Locked"]:
-                    current_regime["state"] = state
-                elif state == "Undefined / Gray Void" and current_regime["state"] != "Stable":
-                    current_regime["state"] = state
+            # State priority: Stable/Locked settle the regime.
+            # A SPIKE that later gets Stable frames = settled regime.
+            if state in ["Stable", "Regime Locked"]:
+                current_regime["state"] = state
     if current_regime:
         # Extend last regime to cover the last note
         current_regime["end_time"] = particles[-1].onset + particles[-1].duration
