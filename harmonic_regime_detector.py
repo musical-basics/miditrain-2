@@ -32,7 +32,7 @@ class HarmonicRegimeDetector:
     """
 
     # Tuned for sharp regime transitions while isolating the anchor
-    def __init__(self, break_angle=20.0, min_break_mass=0.5, merge_angle=10.0):
+    def __init__(self, break_angle=40.0, min_break_mass=0.8, merge_angle=25.0):
         self.break_angle = break_angle
         self.min_break_mass = min_break_mass
         self.merge_angle = merge_angle
