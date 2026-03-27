@@ -188,13 +188,24 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
     # Process all frames at once (batch — enables retroactive re-tagging)
     regime_frames = detector.process(keyframes)
 
-    # Build contiguous regime blocks using Regime_ID (not State string)
+    # Build contiguous regime blocks — split at SPIKE boundaries
+    # even within the same regime_id, so spikes are always visible.
     regimes = []
     current_regime = None
     for frame in regime_frames:
         rid = frame["Regime_ID"]
         state = frame["State"]
-        if current_regime is None or current_regime.get("id") != rid:
+
+        # Start a new visual block if:
+        # 1. New regime_id, OR
+        # 2. State transition: non-SPIKE → SPIKE or SPIKE → non-SPIKE
+        is_new_regime = (current_regime is None or current_regime.get("id") != rid)
+        is_spike_start = (state == "TRANSITION SPIKE!" and current_regime is not None
+                          and current_regime.get("state") != "TRANSITION SPIKE!")
+        is_spike_end = (state != "TRANSITION SPIKE!" and current_regime is not None
+                        and current_regime.get("state") == "TRANSITION SPIKE!")
+
+        if is_new_regime or is_spike_start or is_spike_end:
             if current_regime:
                 current_regime["end_time"] = frame["Time (ms)"]
                 regimes.append(current_regime)
@@ -208,10 +219,8 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
                 "v_vec": frame["V_vec"]
             }
         else:
-            # Update with latest values within the same regime
+            # Update within the same visual block
             current_regime["end_time"] = frame["Time (ms)"]
-            # State priority: Stable/Locked settle the regime.
-            # A SPIKE that later gets Stable frames = settled regime.
             if state in ["Stable", "Regime Locked"]:
                 current_regime["state"] = state
     if current_regime:

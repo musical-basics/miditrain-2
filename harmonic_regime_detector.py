@@ -141,38 +141,19 @@ class HarmonicRegimeDetector:
 
             # ─── CASE 1: REGIME BREAK ───────────────────────────
             if diff > self.break_angle and pmass > self.min_break_mass:
+                # Flush all limbo notes into the OLD regime (time ordering)
+                for lf_time, lf_parts in limbo_frames:
+                    regime_all_particles.extend(lf_parts)
+                    if lf_time in frame_assignments:
+                        frame_assignments[lf_time]['regime_id'] = current_regime_id
+                        frame_assignments[lf_time]['state'] = 'Stable'
+
                 regimes.append(regime_all_particles)
                 current_regime_id += 1
 
-                # Compute the pure angle of JUST the triggering frame
-                fx, fy, fmass = self._compute_vector(particles)
-                f_angle, _ = self._get_hue_sat(fx, fy) if fmass > 0 else (p_angle, 0)
-
-                new_regime_all_particles = []
-
-                # ── RETROACTIVE LOOP-BACK ──
-                for lf_time, lf_parts in limbo_frames:
-                    lx, ly, _ = self._compute_vector(lf_parts)
-                    l_angle, _ = self._get_hue_sat(lx, ly)
-                    diff_old = self._angle_diff(l_angle, r_angle)
-                    diff_new = self._angle_diff(l_angle, f_angle)
-
-                    if diff_old <= diff_new:
-                        regime_all_particles.extend(lf_parts)
-                        if lf_time in frame_assignments:
-                            frame_assignments[lf_time]['regime_id'] = current_regime_id - 1
-                            frame_assignments[lf_time]['state'] = 'Stable'
-                    else:
-                        new_regime_all_particles.extend(lf_parts)
-                        if lf_time in frame_assignments:
-                            frame_assignments[lf_time]['regime_id'] = current_regime_id
-                            frame_assignments[lf_time]['state'] = 'TRANSITION SPIKE!'
-
-                new_regime_all_particles.extend(particles)
-
-                # RESET ANCHOR to strictly the new establishing chord
+                # New regime starts cleanly from JUST the triggering frame
                 anchor_particles = particles.copy()
-                regime_all_particles = new_regime_all_particles
+                regime_all_particles = particles.copy()
                 limbo_frames = []
                 frame_assignments[time_ms] = {
                     'regime_id': current_regime_id, 'state': 'TRANSITION SPIKE!',
