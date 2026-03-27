@@ -26,8 +26,9 @@ class HarmonicRegimeDetector:
     Args:
         break_angle:    Minimum angular divergence (degrees) between the pending
                         notes and the current regime to trigger a regime break.
-        min_break_mass: Minimum accumulated mass in the pending group required
-                        to overpower the current regime.
+        break_ratio:    Incoming pending mass must exceed the current regime's
+                        recent mass × this ratio to trigger a break. Prevents
+                        single passing tones from overthrowing full chords.
         merge_angle:    Maximum angular divergence (degrees) for a frame to be
                         considered harmonically compatible and merged directly.
         memory_ms:      Hard truncation window (ms). When comparing against
@@ -35,9 +36,9 @@ class HarmonicRegimeDetector:
                         memory_ms are considered. Everything older is ignored.
     """
 
-    def __init__(self, break_angle=45.0, min_break_mass=1.2, merge_angle=30.0, memory_ms=1500.0):
+    def __init__(self, break_angle=45.0, break_ratio=0.5, merge_angle=30.0, memory_ms=1500.0):
         self.break_angle = break_angle
-        self.min_break_mass = min_break_mass
+        self.break_ratio = break_ratio
         self.merge_angle = merge_angle
         self.memory_ms = memory_ms
 
@@ -131,7 +132,9 @@ class HarmonicRegimeDetector:
                 current_regime_particles.extend(particles)
                 frame_assignments[time_ms] = {
                     'regime_id': current_regime_id,
-                    'state': 'Regime Locked'
+                    'state': 'Regime Locked',
+                    'debug': {'diff': 0, 'pmass': 0, 'rmass': 0, 'threshold': 0,
+                              'particles': [{'interval': p['interval'], 'mass': round(p['mass'], 3), 'angle': p['angle']} for p in particles]}
                 }
                 continue
 
@@ -140,7 +143,7 @@ class HarmonicRegimeDetector:
             combined_pending = combined_limbo + particles
 
             # Current regime centroid (TRUNCATED — only recent notes count)
-            rx, ry, _ = self._compute_vector_recent(current_regime_particles, time_ms)
+            rx, ry, rmass = self._compute_vector_recent(current_regime_particles, time_ms)
             r_angle, r_sat = self._get_hue_sat(rx, ry)
 
             # Pending group centroid
@@ -149,10 +152,19 @@ class HarmonicRegimeDetector:
 
             diff = self._angle_diff(r_angle, p_angle)
 
+            # Build debug info for this frame
+            frame_debug = {
+                'diff': round(diff, 1),
+                'pmass': round(pmass, 3),
+                'rmass': round(rmass, 3),
+                'threshold': round(rmass * self.break_ratio, 3),
+                'particles': [{'interval': p['interval'], 'mass': round(p['mass'], 3), 'angle': p['angle']} for p in particles]
+            }
+
             # ─── CASE 1: REGIME BREAK ───────────────────────────
-            # Pending mass is large enough AND divergent enough to
-            # overpower the current regime.
-            if diff > self.break_angle and pmass > self.min_break_mass:
+            # Pending mass must exceed the regime's recent mass × ratio
+            # AND be angularly divergent enough.
+            if diff > self.break_angle and pmass > rmass * self.break_ratio:
                 regimes.append(current_regime_particles)
                 current_regime_id += 1
 
@@ -191,7 +203,8 @@ class HarmonicRegimeDetector:
                 limbo_frames = []
                 frame_assignments[time_ms] = {
                     'regime_id': current_regime_id,
-                    'state': 'TRANSITION SPIKE!'
+                    'state': 'TRANSITION SPIKE!',
+                    'debug': frame_debug
                 }
 
             # ─── CASE 2: MERGE (harmonically compatible) ────────
@@ -205,7 +218,8 @@ class HarmonicRegimeDetector:
                 current_regime_particles.extend(particles)
                 frame_assignments[time_ms] = {
                     'regime_id': current_regime_id,
-                    'state': 'Stable'
+                    'state': 'Stable',
+                    'debug': frame_debug
                 }
                 limbo_frames = []
 
@@ -214,7 +228,8 @@ class HarmonicRegimeDetector:
                 limbo_frames.append((time_ms, particles))
                 frame_assignments[time_ms] = {
                     'regime_id': current_regime_id,
-                    'state': 'Undefined / Gray Void'
+                    'state': 'Undefined / Gray Void',
+                    'debug': frame_debug
                 }
 
         # --- Clean up: flush remaining limbo into current regime ---
@@ -254,7 +269,8 @@ class HarmonicRegimeDetector:
                 "Hue": round(hue, 1),
                 "Sat (%)": round(sat, 1),
                 "V_vec": round(v_vec, 1),
-                "State": state
+                "State": state,
+                "debug": assign.get('debug', {})
             })
 
         return frames_output

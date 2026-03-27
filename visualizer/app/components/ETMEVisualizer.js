@@ -276,6 +276,19 @@ export default function ETMEVisualizer() {
       ctx.stroke();
       ctx.shadowColor = 'transparent';
       ctx.shadowBlur = 0;
+
+      // Debug labels on Phase 1 — show per-note mass contribution
+      if (currentView === 'phase1' && n.debug && n.debug.particles) {
+        ctx.font = '7px monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.75)';
+        // Show each particle's interval + mass
+        const parts = n.debug.particles;
+        const label = parts.map(p => `${p.interval}:${p.mass.toFixed(2)}`).join(' ');
+        const diffLabel = `Δ${n.debug.diff}° pm=${n.debug.pmass?.toFixed(2)} rm=${n.debug.rmass?.toFixed(2)}`;
+        ctx.fillText(label, x + 2, y - 2);
+        ctx.fillStyle = 'rgba(255,200,100,0.6)';
+        ctx.fillText(diffLabel, x + 2, y - 10);
+      }
     }
   }, [data, currentView, msPxInput, noteHeight]);
 
