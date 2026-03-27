@@ -171,7 +171,7 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
     # Phase 1: HarmonicRegimeDetector V2 (Limbo State Machine)
     # =============================================
     print("Running Phase 1: Harmonic Regime Detector (Limbo V2)...")
-    detector = HarmonicRegimeDetector(break_angle=45.0, min_break_mass=0.6, merge_angle=30.0, memory_ms=500.0)
+    detector = HarmonicRegimeDetector(break_angle=45.0, min_break_mass=0.6, merge_angle=30.0, memory_ms=400.0)
 
     # Process all frames at once (batch — enables retroactive re-tagging)
     regime_frames = detector.process(keyframes)
