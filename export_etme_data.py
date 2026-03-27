@@ -74,44 +74,34 @@ def calculate_weighted_chord_color(notes):
     }
 
 
-def compute_rolling_color(onset_ms, all_particles, half_life_ms=2000):
+def compute_rolling_color(onset_ms, all_particles, regime_start_ms):
     """
-    Gathers all notes active near 'onset_ms' and calculates
-    the weighted chord color using Acoustic Exponential Decay.
-    A bass note played 2 seconds ago will still have 50% of its
-    original energy, allowing it to bind an entire measure together.
+    Calculates the weighted chord color using active notes.
+    Completely truncates any contributing notes that happened before
+    the current regime's start time — no exponential decay.
+    This prevents color bleeding across regime boundaries.
+    
     Lookahead (50ms) prevents 'color tearing' from human MIDI arpeggiation.
     """
-    # Look back 3 half-lives (e.g. 6 seconds) to catch all ringing resonance
-    window_start = onset_ms - (half_life_ms * 3)
     lookahead = onset_ms + 50
     active_notes = []
 
     for p in all_particles:
+        # HARD TRUNCATE: notes struck before the regime boundary are severed
+        if p.onset < regime_start_ms:
+            continue
+
+        # Optimization: since particles are sorted, stop when we pass lookahead
+        if p.onset > lookahead:
+            break
+
         note_end = p.onset + p.duration
-        
-        # Scenario A: Note was struck recently (within our 6s resonance window)
-        if p.onset <= lookahead and p.onset >= window_start:
-            age = max(0, onset_ms - p.onset)
-            # Exponential decay: 0.5 ** (age / half_life)
-            decay_factor = 0.5 ** (age / half_life_ms)
-            decayed_velocity = int(p.velocity * decay_factor)
-            
-            if decayed_velocity > 0:
-                interval = PC_TO_INTERVAL[p.pitch % 12]
-                octave = p.pitch // 12
-                active_notes.append((interval, octave, decayed_velocity))
-                
-        # Scenario B: Note was struck a long time ago, but is actively held/sustained
-        elif p.onset < window_start and note_end >= onset_ms:
-            age = max(0, onset_ms - p.onset)
-            # Even held notes statically decay over time on a piano
-            decay_factor = 0.5 ** (age / half_life_ms)
-            decayed_velocity = max(1, int(p.velocity * decay_factor))
-            
+
+        # Note is actively sounding at the current time
+        if p.onset <= lookahead and note_end >= onset_ms:
             interval = PC_TO_INTERVAL[p.pitch % 12]
             octave = p.pitch // 12
-            active_notes.append((interval, octave, decayed_velocity))
+            active_notes.append((interval, octave, p.velocity))
 
     if not active_notes:
         return {"hue": 0.0, "sat": 0.0, "lightness": 0.0, "tonal_distance": 0.0}
@@ -171,7 +161,8 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
     # Phase 1: HarmonicRegimeDetector V2 (Limbo State Machine)
     # =============================================
     print("Running Phase 1: Harmonic Regime Detector (Limbo V2)...")
-    detector = HarmonicRegimeDetector(break_angle=45.0, break_ratio=0.5, merge_angle=30.0, memory_ms=400.0)
+    # Remove memory_ms — use tighter thresholds with infinite anchor
+    detector = HarmonicRegimeDetector(break_angle=25.0, min_break_mass=0.5, merge_angle=15.0)
 
     # Process all frames at once (batch — enables retroactive re-tagging)
     regime_frames = detector.process(keyframes)
@@ -241,11 +232,21 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
     print(f"  Tagged {len(melodies)} melody particles")
 
     # Build JSON output — each note gets rolling 4D color
-    print("Computing per-note rolling chord colors (2.0s half-life)...")
+    print("Computing per-note chord colors (truncating past regimes)...")
     notes_json = []
+
+    # Pre-calculate a fast lookup for regime start times
+    def get_regime_start(onset):
+        for r in reversed(regimes):
+            if onset >= r["start_time"]:
+                return r["start_time"]
+        return regimes[0]["start_time"] if regimes else 0
+
     for p in scored_particles:
-        # Acoustic resonance: 2000ms exponential half-life
-        color = compute_rolling_color(p.onset, particles, half_life_ms=2000)
+        regime_start = get_regime_start(p.onset)
+
+        # Hard truncate old resonance at regime boundary
+        color = compute_rolling_color(p.onset, particles, regime_start)
 
         # Regime state from detector (for state-based styling like Spike/Locked)
         closest_frame = min(frame_lookup, key=lambda f: abs(f["time"] - p.onset))
@@ -257,7 +258,7 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
             "duration": p.duration,
             "id_score": round(p.id_score, 2),
             "voice_tag": p.voice_tag,
-            # 4D chord color (rolling window)
+            # 4D chord color (hard-truncated at regime boundary)
             "hue": color["hue"],
             "sat": color["sat"],
             "lightness": color["lightness"],

@@ -22,50 +22,34 @@ SEMITONE_MAP = {
 
 class HarmonicRegimeDetector:
     """Recursive regime detector with Limbo buffer and retroactive re-tagging.
-    
+
+    Uses ALL particles from the current regime as an infinite anchor (no
+    memory_ms truncation) so the establishing chord stays stable until
+    genuinely overpowered.
+
     Args:
-        break_angle:    Minimum angular divergence (degrees) between the pending
-                        notes and the current regime to trigger a regime break.
-        break_ratio:    Incoming pending mass must exceed the current regime's
-                        recent mass × this ratio to trigger a break. Prevents
-                        single passing tones from overthrowing full chords.
-        merge_angle:    Maximum angular divergence (degrees) for a frame to be
-                        considered harmonically compatible and merged directly.
-        memory_ms:      Hard truncation window (ms). When comparing against
-                        incoming notes, only regime particles within the last
-                        memory_ms are considered. Everything older is ignored.
+        break_angle:    Minimum angular divergence (degrees) to trigger a
+                        regime break. Lowered to 25° to capture tight
+                        chord progressions (e.g. Fm → C/E → Fm/E♭ → D♭).
+        min_break_mass: Minimum accumulated mass in the pending group
+                        required to overpower the current regime.
+        merge_angle:    Maximum angular divergence (degrees) for a frame
+                        to be considered harmonically compatible.
     """
 
-    def __init__(self, break_angle=45.0, break_ratio=0.5, merge_angle=30.0, memory_ms=1500.0):
+    # Lowered thresholds to accurately catch m1-m4 chord progressions
+    def __init__(self, break_angle=25.0, min_break_mass=0.5, merge_angle=15.0):
         self.break_angle = break_angle
-        self.break_ratio = break_ratio
+        self.min_break_mass = min_break_mass
         self.merge_angle = merge_angle
-        self.memory_ms = memory_ms
 
     # ------------------------------------------------------------------
     # Vector math helpers
     # ------------------------------------------------------------------
     def _compute_vector(self, particles):
-        """Velocity-weighted vector average over a list of particle dicts (no decay)."""
+        """Velocity-weighted vector average over a list of particle dicts."""
         x, y, mass = 0.0, 0.0, 0.0
         for p in particles:
-            rad = math.radians(p['angle'])
-            x += p['mass'] * math.cos(rad)
-            y += p['mass'] * math.sin(rad)
-            mass += p['mass']
-        if mass == 0:
-            return 0.0, 0.0, 0.0
-        return x / mass, y / mass, mass
-
-    def _compute_vector_recent(self, particles, reference_time_ms):
-        """Like _compute_vector, but hard-truncates: only particles within
-        the last memory_ms contribute. Everything older is completely ignored.
-        """
-        cutoff = reference_time_ms - self.memory_ms
-        x, y, mass = 0.0, 0.0, 0.0
-        for p in particles:
-            if p['time'] < cutoff:
-                continue
             rad = math.radians(p['angle'])
             x += p['mass'] * math.cos(rad)
             y += p['mass'] * math.sin(rad)
@@ -97,11 +81,11 @@ class HarmonicRegimeDetector:
                        Duration is optional (3-tuple also accepted).
 
         Returns:
-            List of dicts with: Time (ms), Regime_ID, Hue, Sat (%), V_vec, State
+            List of dicts with: Time (ms), Regime_ID, Hue, Sat (%), V_vec, State, debug
         """
         current_regime_particles = []
         limbo_frames = []          # [(time_ms, [particle_dicts])]
-        frame_assignments = {}     # time_ms → {regime_id, state}
+        frame_assignments = {}     # time_ms → {regime_id, state, debug}
         regimes = []               # list of particle lists, one per completed regime
         current_regime_id = 0
 
@@ -142,8 +126,8 @@ class HarmonicRegimeDetector:
             combined_limbo = [p for _, lf_parts in limbo_frames for p in lf_parts]
             combined_pending = combined_limbo + particles
 
-            # Current regime centroid (TRUNCATED — only recent notes count)
-            rx, ry, rmass = self._compute_vector_recent(current_regime_particles, time_ms)
+            # Grounding: Use ALL particles from the current regime (infinite anchor memory)
+            rx, ry, rmass = self._compute_vector(current_regime_particles)
             r_angle, r_sat = self._get_hue_sat(rx, ry)
 
             # Pending group centroid
@@ -157,14 +141,12 @@ class HarmonicRegimeDetector:
                 'diff': round(diff, 1),
                 'pmass': round(pmass, 3),
                 'rmass': round(rmass, 3),
-                'threshold': round(rmass * self.break_ratio, 3),
+                'threshold': self.min_break_mass,
                 'particles': [{'interval': p['interval'], 'mass': round(p['mass'], 3), 'angle': p['angle']} for p in particles]
             }
 
             # ─── CASE 1: REGIME BREAK ───────────────────────────
-            # Pending mass must exceed the regime's recent mass × ratio
-            # AND be angularly divergent enough.
-            if diff > self.break_angle and pmass > rmass * self.break_ratio:
+            if diff > self.break_angle and pmass > self.min_break_mass:
                 regimes.append(current_regime_particles)
                 current_regime_id += 1
 

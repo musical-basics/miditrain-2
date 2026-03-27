@@ -279,7 +279,7 @@ export default function ETMEVisualizer() {
 
       // Debug labels on Phase 1 — show per-note mass contribution
       if (currentView === 'phase1' && n.debug && n.debug.particles) {
-        ctx.font = '7px monospace';
+        ctx.font = '9px monospace';
         ctx.fillStyle = 'rgba(255,255,255,0.75)';
         // Show each particle's interval + mass
         const parts = n.debug.particles;
