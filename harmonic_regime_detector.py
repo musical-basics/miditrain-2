@@ -24,22 +24,22 @@ class HarmonicRegimeDetector:
     """Recursive regime detector with Limbo buffer and retroactive re-tagging.
     
     Args:
-        break_angle:   Minimum angular divergence (degrees) between the pending
-                       notes and the current regime to trigger a regime break.
+        break_angle:    Minimum angular divergence (degrees) between the pending
+                        notes and the current regime to trigger a regime break.
         min_break_mass: Minimum accumulated mass in the pending group required
-                       to overpower the current regime.
-        merge_angle:   Maximum angular divergence (degrees) for a frame to be
-                       considered harmonically compatible and merged directly.
-        half_life_ms:  Half-life for temporal decay of regime particles (ms).
-                       Older notes in the current regime lose mass exponentially,
-                       making it easier for new notes to trigger a regime break.
+                        to overpower the current regime.
+        merge_angle:    Maximum angular divergence (degrees) for a frame to be
+                        considered harmonically compatible and merged directly.
+        memory_ms:      Hard truncation window (ms). When comparing against
+                        incoming notes, only regime particles within the last
+                        memory_ms are considered. Everything older is ignored.
     """
 
-    def __init__(self, break_angle=45.0, min_break_mass=1.2, merge_angle=30.0, half_life_ms=2000.0):
+    def __init__(self, break_angle=45.0, min_break_mass=1.2, merge_angle=30.0, memory_ms=1500.0):
         self.break_angle = break_angle
         self.min_break_mass = min_break_mass
         self.merge_angle = merge_angle
-        self.half_life_ms = half_life_ms
+        self.memory_ms = memory_ms
 
     # ------------------------------------------------------------------
     # Vector math helpers
@@ -56,26 +56,19 @@ class HarmonicRegimeDetector:
             return 0.0, 0.0, 0.0
         return x / mass, y / mass, mass
 
-    def _compute_vector_decayed(self, particles, reference_time_ms):
-        """Like _compute_vector, but each particle's mass decays exponentially
-        based on its age relative to reference_time_ms.
-        
-        decay = 0.5 ^ (age / half_life)
-        
-        This prevents old regime particles from permanently anchoring the
-        centroid, allowing fresh incoming notes to overpower them.
+    def _compute_vector_recent(self, particles, reference_time_ms):
+        """Like _compute_vector, but hard-truncates: only particles within
+        the last memory_ms contribute. Everything older is completely ignored.
         """
+        cutoff = reference_time_ms - self.memory_ms
         x, y, mass = 0.0, 0.0, 0.0
         for p in particles:
-            age = max(0, reference_time_ms - p['time'])
-            decay = 0.5 ** (age / self.half_life_ms)
-            decayed_mass = p['mass'] * decay
-            if decayed_mass < 0.01:
-                continue  # Skip negligible contributions
+            if p['time'] < cutoff:
+                continue
             rad = math.radians(p['angle'])
-            x += decayed_mass * math.cos(rad)
-            y += decayed_mass * math.sin(rad)
-            mass += decayed_mass
+            x += p['mass'] * math.cos(rad)
+            y += p['mass'] * math.sin(rad)
+            mass += p['mass']
         if mass == 0:
             return 0.0, 0.0, 0.0
         return x / mass, y / mass, mass
@@ -146,8 +139,8 @@ class HarmonicRegimeDetector:
             combined_limbo = [p for _, lf_parts in limbo_frames for p in lf_parts]
             combined_pending = combined_limbo + particles
 
-            # Current regime centroid (DECAYED — old notes fade out)
-            rx, ry, _ = self._compute_vector_decayed(current_regime_particles, time_ms)
+            # Current regime centroid (TRUNCATED — only recent notes count)
+            rx, ry, _ = self._compute_vector_recent(current_regime_particles, time_ms)
             r_angle, r_sat = self._get_hue_sat(rx, ry)
 
             # Pending group centroid
