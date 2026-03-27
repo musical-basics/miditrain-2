@@ -1,0 +1,27 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Node
+node_modules/
+.next/
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Env
+.env
+.env.local
+
+# Model weights (too large for git)
+*.pth
+
+# Repomix
+repomix-output.*
+
+# wandb
+wandb/

@@ -1,0 +1,10 @@
+torch
+miditok
+symusic
+fastapi
+uvicorn
+python-multipart
+requests
+wandb
+supabase
+python-dotenv
