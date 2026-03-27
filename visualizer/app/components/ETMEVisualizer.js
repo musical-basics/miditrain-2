@@ -162,25 +162,11 @@ export default function ETMEVisualizer() {
         const x = r.start_time * effectiveScale;
         const w = Math.max((r.end_time - r.start_time) * effectiveScale, 1);
 
-        // Compute average hue from all notes within this regime's time window
-        const notesInRegime = notes.filter(n => n.onset >= r.start_time && n.onset < r.end_time);
-        let avgHue = 0, avgSat = 0;
+        // Use the regime's own hue/saturation from the detector
+        const avgHue = r.hue || 0;
+        const avgSat = r.saturation || 0;
 
-        if (notesInRegime.length > 0) {
-          // Vector-average the hues (to handle wraparound at 360°)
-          let sinSum = 0, cosSum = 0, satSum = 0;
-          for (const n of notesInRegime) {
-            const rad = (n.hue || 0) * Math.PI / 180;
-            sinSum += Math.sin(rad);
-            cosSum += Math.cos(rad);
-            satSum += (n.sat || 0);
-          }
-          avgHue = Math.atan2(sinSum, cosSum) * 180 / Math.PI;
-          if (avgHue < 0) avgHue += 360;
-          avgSat = satSum / notesInRegime.length;
-        }
-
-        // Background fill: regime's true harmonic color, very faint
+        // Background fill: regime's harmonic color, very faint
         if (r.state === 'Silence' || r.state === 'Undefined / Gray Void') {
           ctx.fillStyle = 'rgba(30,30,40,0.15)';
         } else {
