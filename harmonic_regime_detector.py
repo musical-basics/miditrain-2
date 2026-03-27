@@ -30,24 +30,52 @@ class HarmonicRegimeDetector:
                        to overpower the current regime.
         merge_angle:   Maximum angular divergence (degrees) for a frame to be
                        considered harmonically compatible and merged directly.
+        half_life_ms:  Half-life for temporal decay of regime particles (ms).
+                       Older notes in the current regime lose mass exponentially,
+                       making it easier for new notes to trigger a regime break.
     """
 
-    def __init__(self, break_angle=45.0, min_break_mass=1.2, merge_angle=30.0):
+    def __init__(self, break_angle=45.0, min_break_mass=1.2, merge_angle=30.0, half_life_ms=2000.0):
         self.break_angle = break_angle
         self.min_break_mass = min_break_mass
         self.merge_angle = merge_angle
+        self.half_life_ms = half_life_ms
 
     # ------------------------------------------------------------------
     # Vector math helpers
     # ------------------------------------------------------------------
     def _compute_vector(self, particles):
-        """Velocity-weighted vector average over a list of particle dicts."""
+        """Velocity-weighted vector average over a list of particle dicts (no decay)."""
         x, y, mass = 0.0, 0.0, 0.0
         for p in particles:
             rad = math.radians(p['angle'])
             x += p['mass'] * math.cos(rad)
             y += p['mass'] * math.sin(rad)
             mass += p['mass']
+        if mass == 0:
+            return 0.0, 0.0, 0.0
+        return x / mass, y / mass, mass
+
+    def _compute_vector_decayed(self, particles, reference_time_ms):
+        """Like _compute_vector, but each particle's mass decays exponentially
+        based on its age relative to reference_time_ms.
+        
+        decay = 0.5 ^ (age / half_life)
+        
+        This prevents old regime particles from permanently anchoring the
+        centroid, allowing fresh incoming notes to overpower them.
+        """
+        x, y, mass = 0.0, 0.0, 0.0
+        for p in particles:
+            age = max(0, reference_time_ms - p['time'])
+            decay = 0.5 ** (age / self.half_life_ms)
+            decayed_mass = p['mass'] * decay
+            if decayed_mass < 0.01:
+                continue  # Skip negligible contributions
+            rad = math.radians(p['angle'])
+            x += decayed_mass * math.cos(rad)
+            y += decayed_mass * math.sin(rad)
+            mass += decayed_mass
         if mass == 0:
             return 0.0, 0.0, 0.0
         return x / mass, y / mass, mass
@@ -118,8 +146,8 @@ class HarmonicRegimeDetector:
             combined_limbo = [p for _, lf_parts in limbo_frames for p in lf_parts]
             combined_pending = combined_limbo + particles
 
-            # Current regime centroid
-            rx, ry, _ = self._compute_vector(current_regime_particles)
+            # Current regime centroid (DECAYED — old notes fade out)
+            rx, ry, _ = self._compute_vector_decayed(current_regime_particles, time_ms)
             r_angle, r_sat = self._get_hue_sat(rx, ry)
 
             # Pending group centroid
