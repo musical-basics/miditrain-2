@@ -1,14 +1,11 @@
 import math
 
 # ==========================================
-# HARMONIC REGIME DETECTOR V2 — Limbo State Machine
+# HARMONIC REGIME DETECTOR V2.2 — Anchor Isolation
 # ==========================================
-# Replaces the frame-by-frame detector with a recursive approach:
-#   1. Notes that agree with the current regime are merged in.
-#   2. Conflicting notes are held in a "Limbo Buffer".
-#   3. When limbo mass exceeds the break threshold, a new regime is
-#      established and limbo notes are retroactively re-tagged to
-#      whichever regime they're closest to.
+# Key innovation: the regime's "anchor" (establishing chord) is isolated
+# from passing notes. Merged notes contribute to the regime's final color
+# but CANNOT drift the anchor centroid. This prevents Centroid Drift.
 
 INTERVAL_ANGLES = {
     "1": 0, "b2": 180, "2": 120, "b3": 270, "3": 60, "4": 330,
@@ -21,24 +18,21 @@ SEMITONE_MAP = {
 
 
 class HarmonicRegimeDetector:
-    """Recursive regime detector with Limbo buffer and retroactive re-tagging.
+    """Regime detector with Anchor Isolation and Limbo buffer.
 
-    Uses ALL particles from the current regime as an infinite anchor (no
-    memory_ms truncation) so the establishing chord stays stable until
-    genuinely overpowered.
+    The establishing chord is locked as an immovable anchor. Passing notes
+    merge into the regime block (for final color) but cannot pollute the
+    anchor's centroid vector, preventing Centroid Drift.
 
     Args:
         break_angle:    Minimum angular divergence (degrees) to trigger a
-                        regime break. Lowered to 25° to capture tight
-                        chord progressions (e.g. Fm → C/E → Fm/E♭ → D♭).
-        min_break_mass: Minimum accumulated mass in the pending group
-                        required to overpower the current regime.
-        merge_angle:    Maximum angular divergence (degrees) for a frame
-                        to be considered harmonically compatible.
+                        regime break. Lowered to 20° for tight progressions.
+        min_break_mass: Minimum accumulated mass in the pending group.
+        merge_angle:    Maximum angular divergence for harmonically compatible merge.
     """
 
-    # Lowered thresholds to accurately catch m1-m4 chord progressions
-    def __init__(self, break_angle=25.0, min_break_mass=0.5, merge_angle=15.0):
+    # Tuned for sharp regime transitions while isolating the anchor
+    def __init__(self, break_angle=20.0, min_break_mass=0.5, merge_angle=10.0):
         self.break_angle = break_angle
         self.min_break_mass = min_break_mass
         self.merge_angle = merge_angle
@@ -71,68 +65,56 @@ class HarmonicRegimeDetector:
         return 360 - diff if diff > 180 else diff
 
     # ------------------------------------------------------------------
-    # Main processing — the Limbo state machine
+    # Main processing — the Limbo state machine with Anchor Isolation
     # ------------------------------------------------------------------
     def process(self, keyframes):
         """Process the full timeline of keyframes and return per-frame assignments.
 
         Args:
             keyframes: list of (time_ms, [(interval, octave, velocity, duration_ms), ...])
-                       Duration is optional (3-tuple also accepted).
 
         Returns:
             List of dicts with: Time (ms), Regime_ID, Hue, Sat (%), V_vec, State, debug
         """
-        current_regime_particles = []
-        limbo_frames = []          # [(time_ms, [particle_dicts])]
-        frame_assignments = {}     # time_ms → {regime_id, state, debug}
-        regimes = []               # list of particle lists, one per completed regime
+        anchor_particles = []      # Pure notes that define the regime's unmoving center
+        regime_all_particles = []  # All notes merged into the regime (for pure color output)
+        limbo_frames = []
+        frame_assignments = {}
+        regimes = []
         current_regime_id = 0
 
         for time_ms, notes in keyframes:
-            # Convert raw notes to particle dicts with mass
             particles = []
             for n in notes:
-                interval = n[0]
-                octave = n[1]
-                velocity = n[2]
+                interval, octave, velocity = n[0], n[1], n[2]
                 angle = INTERVAL_ANGLES.get(interval, 0)
-
-                # Base mass from velocity
                 base_mass = velocity / 127.0
 
-                # Duration boost: longer notes contribute dramatically more
-                # Square the factor so a half note (2s) = 4× a quarter (1s)
+                # 1. Linear Duration Boost (no squaring — prevents crushing fast chords)
                 if len(n) >= 4:
-                    dur_factor = max(0.5, min(n[3] / 1000.0, 2.0))
-                    dur_boost = dur_factor ** 2  # 0.25 → 4.0
+                    dur_boost = max(0.5, min(n[3] / 1000.0, 2.0))
                 else:
                     dur_boost = 1.0
 
-                # Register boost: U-shaped curve centered at octave 4
-                # Bass (oct 2-3) and treble (oct 5-6) get 1.5-2× more mass
-                # Middle (oct 4) gets 1.0× — passing tones live here
+                # 2. Tamed Register Boost (0.15 per octave, not 0.5)
                 distance_from_center = abs(octave - 4)
-                register_boost = 1.0 + (distance_from_center * 0.5)  # oct2=2.0, oct3=1.5, oct4=1.0, oct5=1.5, oct6=2.0
+                register_boost = 1.0 + (distance_from_center * 0.15)
 
                 mass = base_mass * dur_boost * register_boost
 
                 particles.append({
-                    'interval': interval,
-                    'octave': octave,
-                    'angle': angle,
-                    'mass': mass,
-                    'time': time_ms
+                    'interval': interval, 'octave': octave, 'angle': angle,
+                    'mass': mass, 'time': time_ms
                 })
 
-            # --- Bootstrap: first frame seeds the initial regime ---
-            if not current_regime_particles:
-                current_regime_particles.extend(particles)
+            # --- Bootstrap: first frame seeds the anchor ---
+            if not anchor_particles:
+                anchor_particles = particles.copy()
+                regime_all_particles = particles.copy()
                 frame_assignments[time_ms] = {
-                    'regime_id': current_regime_id,
-                    'state': 'Regime Locked',
-                    'debug': {'diff': 0, 'pmass': 0, 'rmass': 0, 'threshold': 0,
-                              'particles': [{'interval': p['interval'], 'octave': p['octave'], 'mass': round(p['mass'], 3), 'angle': p['angle']} for p in particles]}
+                    'regime_id': current_regime_id, 'state': 'Regime Locked',
+                    'debug': {'diff': 0, 'pmass': 0, 'rmass': 0, 'threshold': self.min_break_mass,
+                              'particles': [{'int': p['interval'], 'o': p['octave'], 'm': round(p['mass'], 2)} for p in particles]}
                 }
                 continue
 
@@ -140,8 +122,8 @@ class HarmonicRegimeDetector:
             combined_limbo = [p for _, lf_parts in limbo_frames for p in lf_parts]
             combined_pending = combined_limbo + particles
 
-            # Grounding: Use ALL particles from the current regime (infinite anchor memory)
-            rx, ry, rmass = self._compute_vector(current_regime_particles)
+            # ANCHOR ISOLATION: centroid is calculated strictly from the establishing chord
+            rx, ry, rmass = self._compute_vector(anchor_particles)
             r_angle, r_sat = self._get_hue_sat(rx, ry)
 
             # Pending group centroid
@@ -152,27 +134,23 @@ class HarmonicRegimeDetector:
 
             # Build debug info for this frame
             frame_debug = {
-                'diff': round(diff, 1),
-                'pmass': round(pmass, 3),
-                'rmass': round(rmass, 3),
+                'diff': round(diff, 1), 'pmass': round(pmass, 2), 'rmass': round(rmass, 2),
                 'threshold': self.min_break_mass,
-                'particles': [{'interval': p['interval'], 'octave': p['octave'], 'mass': round(p['mass'], 3), 'angle': p['angle']} for p in particles]
+                'particles': [{'int': p['interval'], 'o': p['octave'], 'm': round(p['mass'], 2)} for p in particles]
             }
 
             # ─── CASE 1: REGIME BREAK ───────────────────────────
             if diff > self.break_angle and pmass > self.min_break_mass:
-                regimes.append(current_regime_particles)
+                regimes.append(regime_all_particles)
                 current_regime_id += 1
 
                 # Compute the pure angle of JUST the triggering frame
                 fx, fy, fmass = self._compute_vector(particles)
                 f_angle, _ = self._get_hue_sat(fx, fy) if fmass > 0 else (p_angle, 0)
 
-                new_regime_particles = []
+                new_regime_all_particles = []
 
                 # ── RETROACTIVE LOOP-BACK ──
-                # Re-evaluate each limbo frame: does it belong to the
-                # old regime or the new one?
                 for lf_time, lf_parts in limbo_frames:
                     lx, ly, _ = self._compute_vector(lf_parts)
                     l_angle, _ = self._get_hue_sat(lx, ly)
@@ -180,41 +158,38 @@ class HarmonicRegimeDetector:
                     diff_new = self._angle_diff(l_angle, f_angle)
 
                     if diff_old <= diff_new:
-                        # Closer to old regime — stays tagged there
-                        current_regime_particles.extend(lf_parts)
-                        frame_assignments[lf_time] = {
-                            'regime_id': current_regime_id - 1,
-                            'state': 'Stable'
-                        }
+                        regime_all_particles.extend(lf_parts)
+                        if lf_time in frame_assignments:
+                            frame_assignments[lf_time]['regime_id'] = current_regime_id - 1
+                            frame_assignments[lf_time]['state'] = 'Stable'
                     else:
-                        # Closer to new regime — retroactively re-tagged!
-                        new_regime_particles.extend(lf_parts)
-                        frame_assignments[lf_time] = {
-                            'regime_id': current_regime_id,
-                            'state': 'TRANSITION SPIKE!'
-                        }
+                        new_regime_all_particles.extend(lf_parts)
+                        if lf_time in frame_assignments:
+                            frame_assignments[lf_time]['regime_id'] = current_regime_id
+                            frame_assignments[lf_time]['state'] = 'TRANSITION SPIKE!'
 
-                new_regime_particles.extend(particles)
-                current_regime_particles = new_regime_particles
+                new_regime_all_particles.extend(particles)
+
+                # RESET ANCHOR to strictly the new establishing chord
+                anchor_particles = particles.copy()
+                regime_all_particles = new_regime_all_particles
                 limbo_frames = []
                 frame_assignments[time_ms] = {
-                    'regime_id': current_regime_id,
-                    'state': 'TRANSITION SPIKE!',
+                    'regime_id': current_regime_id, 'state': 'TRANSITION SPIKE!',
                     'debug': frame_debug
                 }
 
             # ─── CASE 2: MERGE (harmonically compatible) ────────
             elif diff <= self.merge_angle:
                 for lf_time, lf_parts in limbo_frames:
-                    current_regime_particles.extend(lf_parts)
-                    frame_assignments[lf_time] = {
-                        'regime_id': current_regime_id,
-                        'state': 'Stable'
-                    }
-                current_regime_particles.extend(particles)
+                    regime_all_particles.extend(lf_parts)
+                    if lf_time in frame_assignments:
+                        frame_assignments[lf_time]['state'] = 'Stable'
+
+                regime_all_particles.extend(particles)
+                # CRITICAL: We do NOT append to anchor_particles! Prevents Centroid Drift.
                 frame_assignments[time_ms] = {
-                    'regime_id': current_regime_id,
-                    'state': 'Stable',
+                    'regime_id': current_regime_id, 'state': 'Stable',
                     'debug': frame_debug
                 }
                 limbo_frames = []
@@ -223,20 +198,17 @@ class HarmonicRegimeDetector:
             else:
                 limbo_frames.append((time_ms, particles))
                 frame_assignments[time_ms] = {
-                    'regime_id': current_regime_id,
-                    'state': 'Undefined / Gray Void',
+                    'regime_id': current_regime_id, 'state': 'Undefined / Gray Void',
                     'debug': frame_debug
                 }
 
         # --- Clean up: flush remaining limbo into current regime ---
         if limbo_frames:
             for lf_time, lf_parts in limbo_frames:
-                current_regime_particles.extend(lf_parts)
-                frame_assignments[lf_time] = {
-                    'regime_id': current_regime_id,
-                    'state': 'Stable'
-                }
-        regimes.append(current_regime_particles)
+                regime_all_particles.extend(lf_parts)
+                if lf_time in frame_assignments:
+                    frame_assignments[lf_time]['state'] = 'Stable'
+        regimes.append(regime_all_particles)
 
         # --- Compute pure colors for each completed regime block ---
         regime_colors = {}
@@ -245,12 +217,14 @@ class HarmonicRegimeDetector:
             hue, sat = self._get_hue_sat(rx, ry)
             regime_colors[rid] = (hue, sat)
 
-        # --- Build output frames with V_vec (velocity of the harmonic centroid) ---
+        # --- Build output frames ---
         frames_output = []
         prev_x, prev_y = 0.0, 0.0
 
         for time_ms, notes in keyframes:
-            assign = frame_assignments[time_ms]
+            assign = frame_assignments.get(time_ms)
+            if not assign:
+                continue
             rid, state = assign['regime_id'], assign['state']
             hue, sat = regime_colors.get(rid, (0.0, 0.0))
 
@@ -260,13 +234,9 @@ class HarmonicRegimeDetector:
             prev_x, prev_y = cx, cy
 
             frames_output.append({
-                "Time (ms)": time_ms,
-                "Regime_ID": rid,
-                "Hue": round(hue, 1),
-                "Sat (%)": round(sat, 1),
-                "V_vec": round(v_vec, 1),
-                "State": state,
-                "debug": assign.get('debug', {})
+                "Time (ms)": time_ms, "Regime_ID": rid, "Hue": round(hue, 1),
+                "Sat (%)": round(sat, 1), "V_vec": round(v_vec, 1),
+                "State": state, "debug": assign.get('debug', {})
             })
 
         return frames_output

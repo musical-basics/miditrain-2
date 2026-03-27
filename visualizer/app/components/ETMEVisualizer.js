@@ -283,8 +283,8 @@ export default function ETMEVisualizer() {
         ctx.fillStyle = 'rgba(255,255,255,0.75)';
         // Show each particle's interval + mass
         const parts = n.debug.particles;
-        const label = parts.map(p => `${p.interval}(o${p.octave || '?'}):${p.mass.toFixed(2)}`).join(' ');
-        const diffLabel = `Δ${n.debug.diff}° pm=${n.debug.pmass?.toFixed(2)} rm=${n.debug.rmass?.toFixed(2)}`;
+        const label = parts.map(p => `${p.int || p.interval}(o${p.o || p.octave || '?'}):${(p.m ?? p.mass)?.toFixed(2)}`).join(' ');
+        const diffLabel = `Δ${n.debug.diff}° pm=${n.debug.pmass?.toFixed(2)} rm=${n.debug.rmass?.toFixed(2)} th=${n.debug.threshold?.toFixed(2)}`;
         ctx.fillText(label, x + 2, y - 2);
         ctx.fillStyle = 'rgba(255,200,100,0.6)';
         ctx.fillText(diffLabel, x + 2, y - 10);

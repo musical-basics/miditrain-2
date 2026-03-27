@@ -129,26 +129,48 @@ def midi_to_particles(midi_path):
     return particles
 
 
-def extract_keyframes(midi_path):
+def extract_keyframes(midi_path, group_window_ms=50):
     """Convert MIDI into keyframes for the HarmonicRegimeDetector.
+    Groups arpeggiated/rolled notes within `group_window_ms` into a single block.
     Returns list of (time_ms, [(interval_name, octave, velocity, duration_ms), ...])
     """
     score = Score(midi_path)
     tpq = score.ticks_per_quarter
     tick_to_ms = 500.0 / tpq
 
-    time_map = {}
+    raw_notes = []
     for track in score.tracks:
         for note in track.notes:
             time_ms = int(note.start * tick_to_ms)
             interval = PC_TO_INTERVAL[note.pitch % 12]
             octave = note.pitch // 12
             duration_ms = int(note.duration * tick_to_ms)
-            if time_ms not in time_map:
-                time_map[time_ms] = []
-            time_map[time_ms].append((interval, octave, note.velocity, duration_ms))
+            raw_notes.append((time_ms, interval, octave, note.velocity, duration_ms))
 
-    return [(t, time_map[t]) for t in sorted(time_map.keys())]
+    raw_notes.sort(key=lambda x: x[0])
+
+    keyframes = []
+    current_group_time = None
+    current_group_notes = []
+
+    for note in raw_notes:
+        time_ms = note[0]
+        note_data = (note[1], note[2], note[3], note[4])
+
+        if current_group_time is None:
+            current_group_time = time_ms
+            current_group_notes.append(note_data)
+        elif time_ms - current_group_time <= group_window_ms:
+            current_group_notes.append(note_data)
+        else:
+            keyframes.append((current_group_time, current_group_notes))
+            current_group_time = time_ms
+            current_group_notes = [note_data]
+
+    if current_group_time is not None:
+        keyframes.append((current_group_time, current_group_notes))
+
+    return keyframes
 
 
 def export_analysis(midi_path, output_json="etme_analysis.json"):
@@ -160,9 +182,8 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
     # =============================================
     # Phase 1: HarmonicRegimeDetector V2 (Limbo State Machine)
     # =============================================
-    print("Running Phase 1: Harmonic Regime Detector (Limbo V2)...")
-    # Remove memory_ms — use tighter thresholds with infinite anchor
-    detector = HarmonicRegimeDetector(break_angle=25.0, min_break_mass=0.5, merge_angle=15.0)
+    print("Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...")
+    detector = HarmonicRegimeDetector(break_angle=20.0, min_break_mass=0.5, merge_angle=10.0)
 
     # Process all frames at once (batch — enables retroactive re-tagging)
     regime_frames = detector.process(keyframes)
@@ -189,9 +210,12 @@ def export_analysis(midi_path, output_json="etme_analysis.json"):
         else:
             # Update with latest values within the same regime
             current_regime["end_time"] = frame["Time (ms)"]
-            # Prioritize visually stable states if it settles
-            if state in ["Stable", "Regime Locked"]:
-                current_regime["state"] = state
+            # CRITICAL FIX: Do not overwrite a Spike state with a Stable state!
+            if current_regime["state"] != "TRANSITION SPIKE!":
+                if state in ["Stable", "Regime Locked"]:
+                    current_regime["state"] = state
+                elif state == "Undefined / Gray Void" and current_regime["state"] != "Stable":
+                    current_regime["state"] = state
     if current_regime:
         # Extend last regime to cover the last note
         current_regime["end_time"] = particles[-1].onset + particles[-1].duration
