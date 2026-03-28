@@ -29,6 +29,7 @@ class VoiceThreader:
         self.W_TEMPERATURE = 2.0      # Cost per second of silence/cooling (Δt)
         self.W_MOMENTUM_PENALTY = 5.0 # Cost to abruptly reverse trajectory
         self.W_GRAVITY = -15.0        # Discount for aligning with Phase 1 Anchors
+        self.W_SPAWN_PENALTY = 20.0   # Cost to initialize an empty thread (prevents fragmentation)
 
         self.LEGATO_GRACE_MS = 40     # Allow 40ms of overlap for human legato
 
@@ -39,7 +40,8 @@ class VoiceThreader:
         if thread.last_pitch is None:
             # Voice 1 prefers high pitches, Voice 4 prefers low pitches
             # ideal_pitch is set dynamically from the actual pitch range
-            base_cost = abs(p.pitch - thread.ideal_pitch) * 0.5
+            # Add a spawn penalty to encourage reusing existing active threads rather than fragmenting
+            base_cost = (abs(p.pitch - thread.ideal_pitch) * 0.5) + self.W_SPAWN_PENALTY
 
             # Structural notes get a massive discount for waking up outer bounding wires
             if is_structural and (thread.voice_id == 0 or thread.voice_id == self.max_voices - 1):
