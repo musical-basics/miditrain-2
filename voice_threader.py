@@ -83,6 +83,10 @@ class VoiceThreader:
         """Scans left-to-right, threading particles into the path of least resistance."""
         threads = [VoiceThread(i) for i in range(self.max_voices)]
 
+        # Sort by onset ascending, then pitch DESCENDING within same onset
+        # This ensures the highest note in a chord reaches V1 first
+        sorted_particles = sorted(sorted_particles, key=lambda p: (p.onset, -p.pitch))
+
         # Dynamically calibrate ideal_pitch from actual pitch range
         if sorted_particles:
             pitch_min = min(p.pitch for p in sorted_particles)
@@ -92,31 +96,82 @@ class VoiceThreader:
                 # V0 targets top of range, V(N-1) targets bottom
                 t.ideal_pitch = pitch_max - (t.voice_id * (pitch_range / max(1, self.max_voices - 1)))
 
-        for p in sorted_particles:
-            # Ask Phase 1: Does this note occur on a Regime Spike?
-            is_structural = self._is_phase1_anchor(p, regime_frames)
+        # Group particles into onset clusters (within 50ms = chord)
+        # Within a chord, assign by pitch rank: highest → lowest available thread
+        i = 0
+        while i < len(sorted_particles):
+            # Collect all notes in this onset cluster
+            chord_start = sorted_particles[i].onset
+            chord = []
+            while i < len(sorted_particles) and sorted_particles[i].onset - chord_start <= 50:
+                chord.append(sorted_particles[i])
+                i += 1
 
-            best_thread = None
-            lowest_cost = float('inf')
+            # Sort chord by pitch descending (soprano first)
+            chord.sort(key=lambda p: -p.pitch)
 
-            for thread in threads:
-                cost = self._calculate_connection_cost(p, thread, is_structural)
-                if cost < lowest_cost:
-                    lowest_cost = cost
-                    best_thread = thread
+            if len(chord) == 1:
+                # Single note: use normal cost auction
+                p = chord[0]
+                is_structural = self._is_phase1_anchor(p, regime_frames)
+                best_thread = None
+                lowest_cost = float('inf')
+                for thread in threads:
+                    cost = self._calculate_connection_cost(p, thread, is_structural)
+                    if cost < lowest_cost:
+                        lowest_cost = cost
+                        best_thread = thread
 
-            if best_thread:
-                # Execute the assignment
-                if best_thread.last_pitch is not None:
-                    best_thread.momentum = math.copysign(1.0, p.pitch - best_thread.last_pitch) if p.pitch != best_thread.last_pitch else 0.0
-
-                best_thread.particles.append(p)
-                best_thread.last_pitch = p.pitch
-                best_thread.last_end_time = p.onset + p.duration
-                p.voice_tag = f"Voice {best_thread.voice_id + 1}"
+                if best_thread:
+                    if best_thread.last_pitch is not None:
+                        best_thread.momentum = math.copysign(1.0, p.pitch - best_thread.last_pitch) if p.pitch != best_thread.last_pitch else 0.0
+                    best_thread.particles.append(p)
+                    best_thread.last_pitch = p.pitch
+                    best_thread.last_end_time = p.onset + p.duration
+                    p.voice_tag = f"Voice {best_thread.voice_id + 1}"
+                else:
+                    p.voice_tag = "Overflow (Chord)"
             else:
-                # Polyphony Overload (e.g. a 5-note chord on 4 wires)
-                p.voice_tag = "Overflow (Chord)"
+                # Multi-note chord: assign by pitch rank to available threads
+                # Find which threads are available (not colliding)
+                available_threads = []
+                for thread in threads:
+                    if thread.last_pitch is None or chord[0].onset >= (thread.last_end_time - self.LEGATO_GRACE_MS):
+                        available_threads.append(thread)
+
+                # Sort available threads by voice_id (V1 first = soprano)
+                available_threads.sort(key=lambda t: t.voice_id)
+
+                for ci, p in enumerate(chord):
+                    is_structural = self._is_phase1_anchor(p, regime_frames)
+
+                    if ci < len(available_threads):
+                        # Rank assignment: highest pitch → lowest voice_id
+                        best_thread = available_threads[ci]
+                    else:
+                        # More notes than available threads: use cost auction on ALL threads
+                        best_thread = None
+                        lowest_cost = float('inf')
+                        for thread in threads:
+                            cost = self._calculate_connection_cost(p, thread, is_structural)
+                            if cost < lowest_cost:
+                                lowest_cost = cost
+                                best_thread = thread
+
+                    if best_thread and best_thread.last_pitch is not None and p.onset < (best_thread.last_end_time - self.LEGATO_GRACE_MS):
+                        # Collision — mark as overflow
+                        p.voice_tag = "Overflow (Chord)"
+                        continue
+
+                    if best_thread:
+                        if best_thread.last_pitch is not None:
+                            best_thread.momentum = math.copysign(1.0, p.pitch - best_thread.last_pitch) if p.pitch != best_thread.last_pitch else 0.0
+                        best_thread.particles.append(p)
+                        best_thread.last_pitch = p.pitch
+                        best_thread.last_end_time = p.onset + p.duration
+                        p.voice_tag = f"Voice {best_thread.voice_id + 1}"
+                    else:
+                        p.voice_tag = "Overflow (Chord)"
 
         return sorted_particles
 
