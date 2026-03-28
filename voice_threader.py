@@ -100,38 +100,33 @@ class VoiceThreader:
             cost_momentum = self.W_MOMENTUM_PENALTY
 
         # 5. REGISTER GRAVITY (Restoring Force)
-        # Prevents internal voices (2 & 3) from wandering aimlessly. 
-        # Outer boundaries (1 & 4) possess no internal register bounds because they represent the infinite envelope.
-        cost_register = 0.0
-        if thread.voice_id != 0 and thread.voice_id != self.max_voices - 1:
-            cost_register = abs(p.pitch - thread.ideal_pitch) * self.W_REGISTER
+        # Outer boundaries (1 & 4) possess weaker internal register bounds (0.5) because they natively span thicker envelopes.
+        # Internal voices (2 & 3) possess strict register bounds (0.75) to tightly pack polyphony.
+        weight = self.W_REGISTER
+        if thread.voice_id == 0 or thread.voice_id == self.max_voices - 1:
+            weight = 0.5
+            
+        cost_register = abs(p.pitch - thread.ideal_pitch) * weight
             
         # Top/Bottom structural bounds retain their elasticity, but non-structural inner voices invading the boundaries are severely punished
         if is_top and thread.voice_id != 0:
-            if thread.last_pitch != p.pitch:
+            outer = all_threads[0]
+            outer_is_active = (outer.last_end_time >= p.onset - self.LEGATO_GRACE_MS)
+            # If Soprano is actively singing legato, Unison Immunity is unequivocally revoked!
+            if thread.last_pitch != p.pitch or outer_is_active:
                 cost_register += 20.0
-        elif is_top and thread.voice_id == 0:
-            # Reward the Soprano string slightly for maintaining the melodic top-line, enforcing bounds capture
-            cost_register -= 15.0
             
         if is_bottom and thread.voice_id != self.max_voices - 1:
-            if thread.last_pitch != p.pitch:
-                cost_register += 20.0
-        elif is_bottom and thread.voice_id == self.max_voices - 1:
-            # Reward the Bass string slightly for maintaining the structural fundamental
-            cost_register -= 15.0
+            outer = all_threads[self.max_voices - 1]
+            outer_is_active = (outer.last_end_time >= p.onset - self.LEGATO_GRACE_MS)
+            # If Bass is actively sounding legato, Unison Immunity is revoked.
+            # However, because Bass frequently rests while inner voices hold roots, this penalty is softer (+15.0) than the Soprano boundary (+20.0)
+            if thread.last_pitch != p.pitch or outer_is_active:
+                cost_register += 15.0
 
-        # 6. MACRO-GRAVITY
-        cost_gravity = 0.0
-        # Only apply structural macro-gravity to outer topological boundaries.
-        if is_structural and not is_inner:
-            if thread.voice_id == 0 or thread.voice_id == self.max_voices - 1:
-                cost_gravity = self.W_GRAVITY
-            else:
-                if thread.last_pitch != p.pitch:
-                    cost_gravity = abs(self.W_GRAVITY)
-
+        # 6. STRUCTURAL INVADER REPULSION
         # Heavily penalize outer boundary voices attempting to natively snatch the internal filling wires
+        cost_gravity = 0.0
         if is_inner and (thread.voice_id == self.max_voices - 1 or thread.voice_id == 0):
             # Only trigger inner-snatch repel if the outer wire isn't ALREADY holding this exact inner unision pitch!
             if thread.last_pitch != p.pitch:
@@ -176,9 +171,11 @@ class VoiceThreader:
             pitch_min = min(p.pitch for p in sorted_particles)
             pitch_max = max(p.pitch for p in sorted_particles)
             pitch_range = max(pitch_max - pitch_min, 12)  # At least one octave
+            print(f"CHUNK LIMITS: MIN={pitch_min} MAX={pitch_max} RANGE={pitch_range}")
             for t in threads:
                 # V0 targets top of range, V(N-1) targets bottom
                 t.ideal_pitch = pitch_max - (t.voice_id * (pitch_range / max(1, self.max_voices - 1)))
+                print(f"V{t.voice_id} IDEAL: {t.ideal_pitch}")
 
         i = 0
         while i < len(sorted_particles):
@@ -227,7 +224,8 @@ class VoiceThreader:
                 # Cost auction across all available threads
                 for thread in threads:
                     cost = self._calculate_connection_cost(p, thread, threads, is_structural, is_top=is_top, is_bottom=is_bottom, is_inner=is_inner)
-                    
+                    if p.onset == 2250 and p.pitch == 58:
+                        print(f"DEBUG {p.onset}-{p.pitch}->V{thread.voice_id}: cost={cost} last_p={thread.last_pitch} last_end={thread.last_end_time}")
                     if cost < lowest_cost:
                         lowest_cost = cost
                         best_thread = thread

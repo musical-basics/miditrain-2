@@ -1,0 +1,27 @@
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: fifths, Break method: hybrid, Jaccard: 0.5
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 49 harmonic regimes (after consolidation)
+    Stable: 25
+    TRANSITION SPIKE!: 24
+Running Phase 2: Thermodynamic Voice Threading...
+CHUNK LIMITS: MIN=29 MAX=88 RANGE=59
+V0 IDEAL: 88.0
+V1 IDEAL: 68.33333333333333
+V2 IDEAL: 48.666666666666664
+V3 IDEAL: 29.0
+DEBUG 2250-58->V0: cost=143.5 last_p=67 last_end=3000
+DEBUG 2250-58->V1: cost=70.25 last_p=63 last_end=2332
+DEBUG 2250-58->V2: cost=27.001999000666167 last_p=58 last_end=2249
+DEBUG 2250-58->V3: cost=27.0 last_p=51 last_end=2250
+  Voice 1: 37 notes
+  Voice 2: 156 notes
+  Voice 3: 223 notes
+  Voice 4: 91 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_fifths_hybrid_0.5.json
+
+==================================================
+
