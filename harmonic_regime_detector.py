@@ -167,6 +167,54 @@ class HarmonicRegimeDetector:
         regimes = []
         current_regime_id = 0
 
+        def confirm_pending_spike():
+            nonlocal current_regime_id, regime_all_particles, anchor_profile
+            first_spike_time = pending_spike_frames[0][0]
+            # 1. Flush limbo frames into OLD regime
+            for lf_time, lf_parts in limbo_frames:
+                regime_all_particles.extend(lf_parts)
+                if lf_time in frame_assignments:
+                    frame_assignments[lf_time]['regime_id'] = current_regime_id
+                    frame_assignments[lf_time]['state'] = 'Stable'
+
+            # 2. Finalize OLD regime
+            regimes.append(regime_all_particles)
+            current_regime_id += 1
+
+            # 3. New regime starts cleanly from the FIRST pending spike
+            first_parts = pending_spike_frames[0][1]
+            anchor_profile = {}
+            for p in first_parts:
+                anchor_profile[p['interval']] = anchor_profile.get(p['interval'], 0) + p['mass']
+            
+            regime_all_particles = []
+            
+            # 4. Flush all pending spikes into NEW regime
+            for ps_time, ps_parts, ps_debug in pending_spike_frames:
+                regime_all_particles.extend(ps_parts)
+                state = 'TRANSITION SPIKE!' if ps_time == first_spike_time else 'Stable'
+                frame_assignments[ps_time] = {
+                    'regime_id': current_regime_id, 'state': state,
+                    'debug': ps_debug
+                }
+                
+                # Reinforce anchor for subsequent frames in the queue
+                if ps_time != first_spike_time:
+                    cur_ints = {p['interval'] for p in ps_parts}
+                    for p in ps_parts:
+                        i = p['interval']
+                        anchor_profile[i] = min(3.0, anchor_profile.get(i, 0) + p['mass'])
+                    for i in list(anchor_profile.keys()):
+                        if i not in cur_ints:
+                            anchor_profile[i] *= 0.95
+                            if anchor_profile[i] < 0.05:
+                                del anchor_profile[i]
+                                        
+            limbo_frames.clear()
+            pending_spike_frames.clear()
+
+        last_time_ms = -1
+
         for time_ms, notes in keyframes:
             particles = []
             for n in notes:
@@ -191,6 +239,10 @@ class HarmonicRegimeDetector:
                     'mass': mass, 'time': time_ms
                 })
 
+            # Evaluate if there was a long silence (buffer drained)
+            is_fresh_attack = (last_time_ms != -1) and (time_ms - last_time_ms >= 300)
+            last_time_ms = time_ms
+
             # --- Bootstrap: first frame seeds the anchor ---
             if not anchor_profile:
                 for p in particles:
@@ -202,6 +254,12 @@ class HarmonicRegimeDetector:
                               'particles': [{'int': p['interval'], 'o': p['octave'], 'm': round(p['mass'], 2)} for p in particles]}
                 }
                 continue
+
+            # --- Probation Gap Check (Silence Confirms Spike) ---
+            # If the current frame arrives LONG AFTER the last pending spike frame,
+            # the pending spike successfully survived probation through resonance.
+            if pending_spike_frames and (time_ms - pending_spike_frames[-1][0] >= self.debounce_ms):
+                confirm_pending_spike()
 
             # Combine all pending limbo notes with the incoming frame
             combined_limbo = [p for _, lf_parts in limbo_frames for p in lf_parts]
@@ -234,6 +292,10 @@ class HarmonicRegimeDetector:
                 set_pending = self._get_dominant_pcs(combined_pending)
                 set_anchor = self._get_dominant_pcs(anchor_particles)
                 is_subset_anchor = bool(set_pending and set_pending.issubset(set_anchor))
+                
+                # If there was a long silence, override the subset suppression to force a break
+                if is_fresh_attack:
+                    is_subset_anchor = False
                 
                 if set_pending and set_anchor:
                     jaccard = len(set_pending.intersection(set_anchor)) / len(set_pending.union(set_anchor))
@@ -269,48 +331,7 @@ class HarmonicRegimeDetector:
                 first_spike_time = pending_spike_frames[0][0]
                 if time_ms - first_spike_time >= self.debounce_ms:
                     # PROBATION FAILED: CONFIRM SPIKE
-                    # 1. Flush limbo frames into OLD regime
-                    for lf_time, lf_parts in limbo_frames:
-                        regime_all_particles.extend(lf_parts)
-                        if lf_time in frame_assignments:
-                            frame_assignments[lf_time]['regime_id'] = current_regime_id
-                            frame_assignments[lf_time]['state'] = 'Stable'
-
-                    # 2. Finalize OLD regime
-                    regimes.append(regime_all_particles)
-                    current_regime_id += 1
-
-                    # 3. New regime starts cleanly from the FIRST pending spike
-                    first_parts = pending_spike_frames[0][1]
-                    anchor_profile = {}
-                    for p in first_parts:
-                        anchor_profile[p['interval']] = anchor_profile.get(p['interval'], 0) + p['mass']
-                    
-                    regime_all_particles = []
-                    
-                    # 4. Flush all pending spikes into NEW regime
-                    for ps_time, ps_parts, ps_debug in pending_spike_frames:
-                        regime_all_particles.extend(ps_parts)
-                        state = 'TRANSITION SPIKE!' if ps_time == first_spike_time else 'Stable'
-                        frame_assignments[ps_time] = {
-                            'regime_id': current_regime_id, 'state': state,
-                            'debug': ps_debug
-                        }
-                        
-                        # Reinforce anchor for subsequent frames in the queue
-                        if ps_time != first_spike_time:
-                            cur_ints = {p['interval'] for p in ps_parts}
-                            for p in ps_parts:
-                                i = p['interval']
-                                anchor_profile[i] = min(3.0, anchor_profile.get(i, 0) + p['mass'])
-                            for i in list(anchor_profile.keys()):
-                                if i not in cur_ints:
-                                    anchor_profile[i] *= 0.95
-                                    if anchor_profile[i] < 0.05:
-                                        del anchor_profile[i]
-                                        
-                    limbo_frames = []
-                    pending_spike_frames = []
+                    confirm_pending_spike()
                 else:
                     # PROBATION: Tension has not yet exceeded debounce_ms, wait.
                     frame_assignments[time_ms] = {
