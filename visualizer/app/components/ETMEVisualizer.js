@@ -58,7 +58,7 @@ export default function ETMEVisualizer() {
   const [currentView, setCurrentView] = useState('raw');
   const [midiFile, setMidiFile] = useState('chunk2');
   const [angleMap, setAngleMap] = useState('dissonance');
-  const [breakModel, setBreakModel] = useState('hybrid');
+  const [breakModel, setBreakModel] = useState('centroid');
   const [hZoom, setHZoom] = useState(10);
   const [vZoom, setVZoom] = useState(10);
   const [tooltip, setTooltip] = useState(null);

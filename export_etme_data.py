@@ -189,9 +189,9 @@ def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='diss
     # =============================================
     # Phase 1: HarmonicRegimeDetector V2 (Limbo State Machine)
     # =============================================
-    print("Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...")
+    print(f"Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...")
     detector = HarmonicRegimeDetector(
-        break_angle=15.0, min_break_mass=0.75, merge_angle=25.0,
+        break_angle=15.0, min_break_mass=0.75, merge_angle=20.0,
         angle_map=angle_map, break_method=break_method
     )
 
