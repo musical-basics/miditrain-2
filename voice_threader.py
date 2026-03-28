@@ -119,6 +119,9 @@ class VoiceThreader:
             else:
                 cost_gravity = abs(self.W_GRAVITY)
 
+        if p.onset == 1625 and p.pitch == 51:
+            print(f"DEBUG 51(1625)->V{thread.voice_id+1}: base={getattr(locals(), 'base_cost', 0)} coll={cost_collision} elas={cost_elastic} temp={cost_temp} mom={cost_momentum} reg={cost_register} grav={cost_gravity} is_bottom={is_bottom} is_top={is_top} gap_s={gap_s if 'gap_s' in locals() else 0}")
+            
         return max(0.0, cost_collision + cost_elastic + cost_temp + cost_momentum + cost_register + cost_gravity)
 
     def thread_particles(self, sorted_particles, regime_frames):
@@ -176,7 +179,7 @@ class VoiceThreader:
                                 if t.last_pitch < p.pitch:
                                     physically_bottom = False
                         
-                        if physically_bottom and p.pitch <= threads[-1].ideal_pitch + 18:
+                        if physically_bottom and p.pitch <= threads[-1].ideal_pitch + 24:
                             is_bottom = True
                             
                     if not is_top and not is_bottom:
