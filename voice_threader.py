@@ -36,7 +36,7 @@ class VoiceThreader:
 
         self.LEGATO_GRACE_MS = 40     # Allow 40ms of overlap for human legato
 
-    def _calculate_connection_cost(self, p, thread, is_structural, is_top=False, is_bottom=False):
+    def _calculate_connection_cost(self, p, thread, is_structural, is_top=False, is_bottom=False, is_inner=False):
         """Calculates the energy (ΔE) required to append particle 'p' to 'thread'."""
 
         # Base case: Empty thread initialization
@@ -111,7 +111,9 @@ class VoiceThreader:
 
         # 6. MACRO-GRAVITY
         cost_gravity = 0.0
-        if is_structural:
+        # Only apply structural macro-gravity to outer topological boundaries.
+        # Inner harmony notes within a thick chord naturally belong in V2/V3 and should not be penalized for it.
+        if is_structural and not is_inner:
             if thread.voice_id == 0 or thread.voice_id == self.max_voices - 1:
                 cost_gravity = self.W_GRAVITY
             else:
@@ -154,6 +156,7 @@ class VoiceThreader:
                 
                 is_top = False
                 is_bottom = False
+                is_inner = False
                 if len(chord) > 1:
                     if p is chord[0]:
                         is_top = True
@@ -161,6 +164,9 @@ class VoiceThreader:
                         # Dynamically check if the bass note falls within ~1.5 octaves of true baseline
                         if p.pitch <= threads[-1].ideal_pitch + 18:
                             is_bottom = True
+                            
+                    if not is_top and not is_bottom:
+                        is_inner = True
                         
                 best_thread = None
                 lowest_cost = float('inf')
@@ -170,7 +176,7 @@ class VoiceThreader:
                     if thread in used_threads:
                         continue
 
-                    cost = self._calculate_connection_cost(p, thread, is_structural, is_top=is_top, is_bottom=is_bottom)
+                    cost = self._calculate_connection_cost(p, thread, is_structural, is_top=is_top, is_bottom=is_bottom, is_inner=is_inner)
                     if cost < lowest_cost:
                         lowest_cost = cost
                         best_thread = thread
