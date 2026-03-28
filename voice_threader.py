@@ -143,23 +143,36 @@ class VoiceThreader:
                 # Ensures outer bounding voices (soprano/bass) fill first,
                 # so a 2-note chord gets V1 + V4, not V1 + V2.
                 available_threads.sort(key=lambda t: t.voice_id)
-                if len(available_threads) >= 2:
-                    reordered = []
-                    lo, hi = 0, len(available_threads) - 1
-                    while lo <= hi:
-                        reordered.append(available_threads[lo])
-                        if lo != hi:
-                            reordered.append(available_threads[hi])
-                        lo += 1
-                        hi -= 1
-                    available_threads = reordered
+
+                # We need to pick exactly N threads for N notes.
+                # Prioritize the outer-most bounding voices available,
+                # then fill in inner voices.
+                num_notes = len(chord)
+                if len(available_threads) > num_notes:
+                    selected = set()
+                    # 1. Take highest available voice (Soprano-ish)
+                    if num_notes > 0:
+                        selected.add(available_threads[0])
+                    # 2. Take lowest available voice (Bass-ish)
+                    if num_notes > 1:
+                        selected.add(available_threads[-1])
+                    # 3. Fill the rest top-down
+                    for t in available_threads:
+                        if len(selected) == num_notes:
+                            break
+                        selected.add(t)
+                    
+                    # Sort selected threads by voice_id so rank assignment (highest pitch -> lowest voice_id) works correctly
+                    target_threads = sorted(list(selected), key=lambda t: t.voice_id)
+                else:
+                    target_threads = available_threads
 
                 for ci, p in enumerate(chord):
                     is_structural = self._is_phase1_anchor(p, regime_frames)
 
-                    if ci < len(available_threads):
+                    if ci < len(target_threads):
                         # Rank assignment: highest pitch → lowest voice_id
-                        best_thread = available_threads[ci]
+                        best_thread = target_threads[ci]
                     else:
                         # More notes than available threads: use cost auction on ALL threads
                         best_thread = None
