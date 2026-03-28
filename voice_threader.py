@@ -16,6 +16,7 @@ class VoiceThread:
         self.last_pitch = None
         self.last_end_time = -9999
         self.momentum = 0.0  # +1 for ascending trajectory, -1 for descending
+        self.ideal_pitch = None  # Set dynamically from actual pitch range
 
 
 class VoiceThreader:
@@ -37,8 +38,8 @@ class VoiceThreader:
         # Base case: Empty thread initialization
         if thread.last_pitch is None:
             # Voice 1 prefers high pitches, Voice 4 prefers low pitches
-            ideal_pitch = 84 - (thread.voice_id * (48 / max(1, self.max_voices - 1)))
-            base_cost = abs(p.pitch - ideal_pitch) * 0.5
+            # ideal_pitch is set dynamically from the actual pitch range
+            base_cost = abs(p.pitch - thread.ideal_pitch) * 0.5
 
             # Structural notes get a massive discount for waking up outer bounding wires
             if is_structural and (thread.voice_id == 0 or thread.voice_id == self.max_voices - 1):
@@ -81,6 +82,15 @@ class VoiceThreader:
     def thread_particles(self, sorted_particles, regime_frames):
         """Scans left-to-right, threading particles into the path of least resistance."""
         threads = [VoiceThread(i) for i in range(self.max_voices)]
+
+        # Dynamically calibrate ideal_pitch from actual pitch range
+        if sorted_particles:
+            pitch_min = min(p.pitch for p in sorted_particles)
+            pitch_max = max(p.pitch for p in sorted_particles)
+            pitch_range = max(pitch_max - pitch_min, 12)  # At least one octave
+            for t in threads:
+                # V0 targets top of range, V(N-1) targets bottom
+                t.ideal_pitch = pitch_max - (t.voice_id * (pitch_range / max(1, self.max_voices - 1)))
 
         for p in sorted_particles:
             # Ask Phase 1: Does this note occur on a Regime Spike?
