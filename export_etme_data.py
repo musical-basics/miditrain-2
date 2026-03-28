@@ -275,9 +275,20 @@ def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='diss
 
     # Pre-calculate a fast lookup for regime start times
     def get_regime_start(onset):
-        for r in reversed(regimes):
-            if onset >= r["start_time"]:
-                return r["start_time"]
+        """Find the true start of the regime containing this onset.
+        Traces back through any preceding SPIKE blocks with the same
+        regime id, since the SPIKE marks the beginning of the regime.
+        """
+        for i, r in enumerate(regimes):
+            if onset >= r["start_time"] and (i == len(regimes) - 1 or onset < regimes[i + 1]["start_time"]):
+                # Found the block — now trace back through same-id blocks
+                start = r["start_time"]
+                rid = r["id"]
+                j = i - 1
+                while j >= 0 and regimes[j]["id"] == rid:
+                    start = regimes[j]["start_time"]
+                    j -= 1
+                return start
         return regimes[0]["start_time"] if regimes else 0
 
     for p in scored_particles:
