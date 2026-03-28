@@ -228,16 +228,37 @@ class HarmonicRegimeDetector:
                 'particles': [{'int': p['interval'], 'o': p['octave'], 'm': round(p['mass'], 2)} for p in particles]
             }
 
-            # Check subset rule for hybrid/histogram methods to suppress false spikes/limbos
-            is_subset = False
+            # Check subset rules to evaluate resolutions and suppress false limbos
+            is_subset_anchor = False
+            is_subset_spike = False
+            
             if self.break_method in ('hybrid', 'histogram'):
-                set_a = self._get_dominant_pcs(anchor_particles)
-                set_b = self._get_dominant_pcs(combined_pending)
-                is_subset = bool(set_b and set_b.issubset(set_a))
+                set_pending = self._get_dominant_pcs(combined_pending)
+                set_anchor = self._get_dominant_pcs(anchor_particles)
+                is_subset_anchor = bool(set_pending and set_pending.issubset(set_anchor))
+                
+                if pending_spike_frames:
+                    # Construct pseudo-particles for the accumulated pending spike
+                    spike_pcs = set()
+                    for _, ps_parts, _ in pending_spike_frames:
+                        spike_pcs.update(self._get_dominant_pcs(ps_parts))
+                    is_subset_spike = bool(set_pending and set_pending.issubset(spike_pcs))
+
+            # Ambiguity Resolution: An isolated note (e.g. B) may belong to both the I chord AND the V7 chord.
+            # If it belongs to the pending modulation, it continues the tension rather than prematurely resolving it.
+            is_resolution = is_subset_anchor and not is_subset_spike
+            
+            # If the notes clearly belong to the active modulation, do not allow them to merge into the old regime
+            # even if their angle difference happens to be < 25.0
+            if pending_spike_frames and is_subset_spike:
+                can_merge = False
+            else:
+                can_merge = (diff <= self.merge_angle) or is_resolution
 
             # ─── CASE 1: REGIME BREAK (OR PENDING SPIKE) ────────
-            if self._should_break(anchor_particles, combined_pending, diff, pmass, is_subset) or \
-               (pending_spike_frames and not (diff <= self.merge_angle or is_subset)):
+            # Note: _should_break uses is_subset_anchor to suppress initial breaks
+            if self._should_break(anchor_particles, combined_pending, diff, pmass, is_subset_anchor) or \
+               (pending_spike_frames and not can_merge):
                 
                 # Tension is initiated or continuing
                 pending_spike_frames.append((time_ms, particles, frame_debug))
@@ -295,7 +316,7 @@ class HarmonicRegimeDetector:
                     }
 
             # ─── CASE 2: MERGE (harmonically compatible) ────────
-            elif diff <= self.merge_angle or is_subset:
+            elif can_merge:
                 # RESOLUTION: Swallow any pending spikes back into the regime
                 if pending_spike_frames:
                     for ps_time, ps_parts, ps_debug in pending_spike_frames:
