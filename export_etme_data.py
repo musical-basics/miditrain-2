@@ -365,10 +365,10 @@ if __name__ == "__main__":
             for bm in break_methods:
                 if bm == 'hybrid':
                     for jt in [0.3, 0.5, 0.7]:
-                        out = f"etme_{midi_key}_{am}_{bm}_{jt}.json"
+                        out = f"visualizer/public/etme_{midi_key}_{am}_{bm}_{jt}.json"
                         export_analysis(midi_path, output_json=out, angle_map=am, break_method=bm, jaccard_threshold=jt)
                         print(sep)
                 else:
-                    out = f"etme_{midi_key}_{am}_{bm}.json"
+                    out = f"visualizer/public/etme_{midi_key}_{am}_{bm}.json"
                     export_analysis(midi_path, output_json=out, angle_map=am, break_method=bm)
                     print(sep)
