@@ -360,13 +360,13 @@ if __name__ == "__main__":
         'chunk3': 'pathetique_test_chunk3.mid',
     }
     angle_maps = ['dissonance', 'fifths']
-    break_methods = ['centroid', 'histogram', 'hybrid']
+    break_methods = ['centroid', 'histogram', 'hybrid', 'hybrid_split']
     sep = "\n" + "="*50 + "\n"
 
     for midi_key, midi_path in midis.items():
         for am in angle_maps:
             for bm in break_methods:
-                if bm == 'hybrid':
+                if bm in ('hybrid', 'hybrid_split'):
                     for jt in [0.3, 0.5, 0.7]:
                         out = f"visualizer/public/etme_{midi_key}_{am}_{bm}_{jt}.json"
                         export_analysis(midi_path, output_json=out, angle_map=am, break_method=bm, jaccard_threshold=jt)

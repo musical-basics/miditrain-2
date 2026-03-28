@@ -1,0 +1,32 @@
+{
+  "output": {
+    "filePath": "repomix-output.xml",
+    "style": "xml"
+  },
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      ".venv/**",
+      "__pycache__/**",
+      "node_modules/**",
+      ".next/**",
+      ".git/**",
+      ".DS_Store",
+      "*.mid",
+      "*.png",
+      "*.pth",
+      "etme_*.json",
+      "visualizer/public/etme_*.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "wandb/**",
+      "repomix-output.*",
+      "CLAUDE.md",
+      "AGENTS.md",
+      "_backup_files/**",
+      "STS_bootstrapper.py",
+      "Screenshot*"
+    ]
+  }
+}

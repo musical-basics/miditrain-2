@@ -82,7 +82,7 @@ export default function ETMEVisualizer() {
 
   // Load data when any selector changes
   useEffect(() => {
-    const file = breakModel === 'hybrid' 
+    const file = (breakModel === 'hybrid' || breakModel === 'hybrid_split')
       ? `etme_${midiFile}_${angleMap}_${breakModel}_${jaccardThreshold}.json`
       : `etme_${midiFile}_${angleMap}_${breakModel}.json`;
     fetch(`/${file}?t=${Date.now()}`)
@@ -464,8 +464,9 @@ export default function ETMEVisualizer() {
           <option value="centroid">Centroid (Angle)</option>
           <option value="histogram">Histogram (Cosine)</option>
           <option value="hybrid">Hybrid (Angle+Jaccard)</option>
+          <option value="hybrid_split">Hybrid-Split (Queue Split)</option>
         </select>
-        {breakModel === 'hybrid' && (
+        {(breakModel === 'hybrid' || breakModel === 'hybrid_split') && (
           <select
             value={jaccardThreshold}
             onChange={e => setJaccardThreshold(+e.target.value)}

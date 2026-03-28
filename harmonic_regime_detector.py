@@ -133,7 +133,7 @@ class HarmonicRegimeDetector:
             # Break if cosine similarity < 0.7 (very different pitch-class content)
             return cosine_sim < 0.7
 
-        elif self.break_method == 'hybrid':
+        elif self.break_method in ('hybrid', 'hybrid_split'):
             # 1. Subset Rule: if incoming notes are just a re-voicing/subset of the 
             # established regime, suppress the break (even if angle diff is large due to volume).
             if is_subset:
@@ -289,7 +289,7 @@ class HarmonicRegimeDetector:
             is_subset_spike = False
             jaccard = 1.0
             
-            if self.break_method in ('hybrid', 'histogram'):
+            if self.break_method in ('hybrid', 'hybrid_split', 'histogram'):
                 set_pending = self._get_dominant_pcs(combined_pending)
                 set_anchor = self._get_dominant_pcs(anchor_particles)
                 is_subset_anchor = bool(set_pending and set_pending.issubset(set_anchor))
@@ -326,6 +326,20 @@ class HarmonicRegimeDetector:
             if self._should_break(anchor_particles, combined_pending, diff, pmass, is_subset_anchor, jaccard) or \
                (pending_spike_frames and not can_merge):
                 
+                # hybrid_split: if there are already pending spike frames,
+                # check whether this new frame's pitch content diverges from
+                # the accumulated spike PCs. If so, force-confirm the existing
+                # spike as one regime and start a fresh spike with this frame.
+                if self.break_method == 'hybrid_split' and pending_spike_frames:
+                    spike_pcs = set()
+                    for _, ps_parts, _ in pending_spike_frames:
+                        spike_pcs.update(self._get_dominant_pcs(ps_parts))
+                    frame_pcs = self._get_dominant_pcs(particles)
+                    intra_jaccard = self._jaccard_similarity(spike_pcs, frame_pcs)
+                    if intra_jaccard < self.jaccard_threshold:
+                        # Divergent frame — force-confirm existing spike first
+                        confirm_pending_spike()
+
                 # Tension is initiated or continuing
                 pending_spike_frames.append((time_ms, particles, frame_debug))
                 
