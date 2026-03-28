@@ -38,6 +38,20 @@ function idScoreToColor(score) {
   return hsl(h, s, l);
 }
 
+// Voice thread colors: distinct hues for each voice wire
+const VOICE_COLORS = {
+  'Voice 1': { h: 330, s: 85, l: 60, label: '🎵 Soprano (V1)' },   // Hot Pink
+  'Voice 2': { h: 200, s: 80, l: 55, label: '🎶 Alto (V2)' },      // Cyan-Blue
+  'Voice 3': { h: 45,  s: 85, l: 50, label: '🎶 Tenor (V3)' },     // Gold
+  'Voice 4': { h: 140, s: 70, l: 45, label: '🎵 Bass (V4)' },      // Green
+  'Overflow (Chord)': { h: 0, s: 0, l: 50, label: '⚠️ Overflow' }, // Gray
+};
+
+function voiceColor(voiceTag, alpha = 0.85) {
+  const vc = VOICE_COLORS[voiceTag] || VOICE_COLORS['Overflow (Chord)'];
+  return hsl(vc.h, vc.s, vc.l, alpha);
+}
+
 function regimeBlockColor(regime) {
   const h = regime.hue || 0;
   const s = regime.saturation || 0;
@@ -256,11 +270,12 @@ export default function ETMEVisualizer() {
           strokeColor = `hsla(${h}, ${s}%, ${Math.min(l + 10, 80)}%, 0.9)`;
         }
       } else if (currentView === 'phase2') {
-        fillColor = idScoreToColor(n.id_score);
-        strokeColor = idScoreToColor(n.id_score);
-        if (n.voice_tag && n.voice_tag.includes('Voice 1')) {
-          ctx.shadowColor = 'rgba(236, 72, 153, 0.5)';
-          ctx.shadowBlur = 6;
+        const vc = VOICE_COLORS[n.voice_tag] || VOICE_COLORS['Overflow (Chord)'];
+        fillColor = hsl(vc.h, vc.s, vc.l, 0.85);
+        strokeColor = hsl(vc.h, vc.s, Math.min(vc.l + 15, 80), 1);
+        if (n.voice_tag === 'Voice 1' || n.voice_tag === 'Voice 4') {
+          ctx.shadowColor = hsl(vc.h, 90, 50, 0.4);
+          ctx.shadowBlur = 5;
         } else {
           ctx.shadowColor = 'transparent';
           ctx.shadowBlur = 0;
@@ -369,10 +384,13 @@ export default function ETMEVisualizer() {
     );
     return (
       <>
-        <h3>Phase 2 — Information Density</h3>
-        <div className="legend-item"><div className="legend-swatch" style={{ background: hsl(240,70,45) }} />Low I<sub>d</sub> (Background)</div>
-        <div className="legend-item"><div className="legend-swatch" style={{ background: hsl(120,80,52) }} />Medium I<sub>d</sub></div>
-        <div className="legend-item"><div className="legend-swatch" style={{ background: hsl(0,90,60), boxShadow: '0 0 8px rgba(236,72,153,0.5)' }} />High I<sub>d</sub> (Melody)</div>
+        <h3>Phase 2 — Voice Threading</h3>
+        {Object.entries(VOICE_COLORS).map(([key, vc]) => (
+          <div key={key} className="legend-item">
+            <div className="legend-swatch" style={{ background: hsl(vc.h, vc.s, vc.l) }} />
+            {vc.label}
+          </div>
+        ))}
       </>
     );
   };
@@ -380,7 +398,7 @@ export default function ETMEVisualizer() {
   const views = [
     { id: 'raw', label: 'Piano Roll', color: 'var(--accent-blue)' },
     { id: 'phase1', label: 'Phase 1 — Harmonic Regimes', color: 'var(--accent-green)' },
-    { id: 'phase2', label: 'Phase 2 — Information Density', color: 'var(--accent-pink)' },
+    { id: 'phase2', label: 'Phase 2 — Voice Threading', color: 'var(--accent-pink)' },
   ];
 
   return (
@@ -391,8 +409,9 @@ export default function ETMEVisualizer() {
         <div className="stats">
           <div>Notes<span className="stat-value">{data?.stats?.total_notes ?? '—'}</span></div>
           <div>Regimes<span className="stat-value">{data?.stats?.total_regimes ?? '—'}</span></div>
-          <div>Melody<span className="stat-value">{data?.stats?.melody_notes ?? '—'}</span></div>
-          <div>Background<span className="stat-value">{data?.stats?.background_notes ?? '—'}</span></div>
+          {data?.stats?.voice_counts && Object.entries(data.stats.voice_counts).sort().map(([tag, count]) => (
+            <div key={tag}>{tag}<span className="stat-value">{count}</span></div>
+          ))}
         </div>
       </div>
 

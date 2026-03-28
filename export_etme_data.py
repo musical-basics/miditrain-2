@@ -10,7 +10,7 @@ import math
 from symusic import Score
 from particle import Particle
 from harmonic_regime_detector import HarmonicRegimeDetector, SEMITONE_MAP, ANGLE_MAPS, INTERVAL_ANGLES_DISSONANCE
-from information_density import InformationDensityScanner
+from voice_threader import VoiceThreader
 
 # Map MIDI pitch class (0-11) to interval names for the regime detector
 PC_TO_INTERVAL = {
@@ -263,14 +263,18 @@ def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='diss
         keyframe_dict[time_ms] = notes
 
     # =============================================
-    # Phase 2: Information Density
+    # Phase 2: Thermodynamic Voice Threading
     # =============================================
-    print("Running Phase 2: Information Density...")
-    scanner = InformationDensityScanner(melody_threshold=50.0)
-    scored_particles = scanner.calculate_id_scores(particles)
+    print("Running Phase 2: Thermodynamic Voice Threading...")
+    threader = VoiceThreader(max_voices=4)
+    scored_particles = threader.thread_particles(particles, frame_lookup)
 
-    melodies = [p for p in scored_particles if "Voice 1" in p.voice_tag]
-    print(f"  Tagged {len(melodies)} melody particles")
+    # Count per-voice assignments
+    voice_counts = {}
+    for p in scored_particles:
+        voice_counts[p.voice_tag] = voice_counts.get(p.voice_tag, 0) + 1
+    for tag, count in sorted(voice_counts.items()):
+        print(f"  {tag}: {count} notes")
 
     # Build JSON output — each note gets rolling 4D color
     print("Computing per-note chord colors (truncating past regimes)...")
@@ -338,8 +342,7 @@ def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='diss
         "stats": {
             "total_notes": len(notes_json),
             "total_regimes": len(regimes_json),
-            "melody_notes": len(melodies),
-            "background_notes": len(notes_json) - len(melodies)
+            "voice_counts": voice_counts
         }
     }
 
