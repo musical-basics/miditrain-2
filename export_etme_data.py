@@ -177,9 +177,9 @@ def extract_keyframes(midi_path, group_window_ms=50):
     return keyframes
 
 
-def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='dissonance', break_method='centroid'):
+def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='dissonance', break_method='centroid', jaccard_threshold=0.5):
     print(f"Loading MIDI: {midi_path}")
-    print(f"  Angle map: {angle_map}, Break method: {break_method}")
+    print(f"  Angle map: {angle_map}, Break method: {break_method}, Jaccard: {jaccard_threshold}")
     particles = midi_to_particles(midi_path)
     keyframes = extract_keyframes(midi_path)
     print(f"  Loaded {len(particles)} particles, {len(keyframes)} keyframes")
@@ -192,7 +192,7 @@ def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='diss
     print(f"Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...")
     detector = HarmonicRegimeDetector(
         break_angle=15.0, min_break_mass=0.75, merge_angle=20.0,
-        angle_map=angle_map, break_method=break_method
+        angle_map=angle_map, break_method=break_method, jaccard_threshold=jaccard_threshold
     )
 
     # Process all frames at once (batch — enables retroactive re-tagging)
@@ -363,6 +363,12 @@ if __name__ == "__main__":
     for midi_key, midi_path in midis.items():
         for am in angle_maps:
             for bm in break_methods:
-                out = f"etme_{midi_key}_{am}_{bm}.json"
-                export_analysis(midi_path, output_json=out, angle_map=am, break_method=bm)
-                print(sep)
+                if bm == 'hybrid':
+                    for jt in [0.3, 0.5, 0.7]:
+                        out = f"etme_{midi_key}_{am}_{bm}_{jt}.json"
+                        export_analysis(midi_path, output_json=out, angle_map=am, break_method=bm, jaccard_threshold=jt)
+                        print(sep)
+                else:
+                    out = f"etme_{midi_key}_{am}_{bm}.json"
+                    export_analysis(midi_path, output_json=out, angle_map=am, break_method=bm)
+                    print(sep)

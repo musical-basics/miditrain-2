@@ -48,13 +48,14 @@ class HarmonicRegimeDetector:
     """
 
     def __init__(self, break_angle=40.0, min_break_mass=0.8, merge_angle=20.0,
-                 angle_map='dissonance', break_method='centroid', debounce_ms=100):
+                 angle_map='dissonance', break_method='centroid', debounce_ms=100, jaccard_threshold=0.5):
         self.break_angle = break_angle
         self.min_break_mass = min_break_mass
         self.merge_angle = merge_angle
         self.interval_angles = ANGLE_MAPS.get(angle_map, INTERVAL_ANGLES_DISSONANCE)
         self.break_method = break_method
         self.debounce_ms = debounce_ms
+        self.jaccard_threshold = jaccard_threshold
 
     # ------------------------------------------------------------------
     # Vector math helpers
@@ -143,7 +144,7 @@ class HarmonicRegimeDetector:
                 return True
                 
             # 3. Set Divergence Rule
-            return jaccard < 0.5
+            return jaccard < self.jaccard_threshold
 
         return diff > self.break_angle  # fallback
 

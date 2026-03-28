@@ -59,6 +59,7 @@ export default function ETMEVisualizer() {
   const [midiFile, setMidiFile] = useState('chunk2');
   const [angleMap, setAngleMap] = useState('dissonance');
   const [breakModel, setBreakModel] = useState('hybrid');
+  const [jaccardThreshold, setJaccardThreshold] = useState(0.5);
   const [hZoom, setHZoom] = useState(10);
   const [vZoom, setVZoom] = useState(10);
   const [tooltip, setTooltip] = useState(null);
@@ -67,12 +68,14 @@ export default function ETMEVisualizer() {
 
   // Load data when any selector changes
   useEffect(() => {
-    const file = `etme_${midiFile}_${angleMap}_${breakModel}.json`;
+    const file = breakModel === 'hybrid' 
+      ? `etme_${midiFile}_${angleMap}_${breakModel}_${jaccardThreshold}.json`
+      : `etme_${midiFile}_${angleMap}_${breakModel}.json`;
     fetch(`/${file}?t=${Date.now()}`)
       .then(r => r.json())
       .then(setData)
       .catch(err => console.error('Failed to load data:', err));
-  }, [midiFile, angleMap, breakModel]);
+  }, [midiFile, angleMap, breakModel, jaccardThreshold]);
 
   // Sync scroll between keyboard and canvas
   useEffect(() => {
@@ -443,6 +446,21 @@ export default function ETMEVisualizer() {
           <option value="histogram">Histogram (Cosine)</option>
           <option value="hybrid">Hybrid (Angle+Jaccard)</option>
         </select>
+        {breakModel === 'hybrid' && (
+          <select
+            value={jaccardThreshold}
+            onChange={e => setJaccardThreshold(+e.target.value)}
+            style={{
+              padding: '4px 8px', fontSize: '11px',
+              background: '#1a1a2e', color: '#e0e0e0', border: '1px solid #333',
+              borderRadius: '4px', cursor: 'pointer'
+            }}
+          >
+            <option value={0.3}>Jaccard: 0.3 (Tolerant)</option>
+            <option value={0.5}>Jaccard: 0.5 (Normal)</option>
+            <option value={0.7}>Jaccard: 0.7 (Strict)</option>
+          </select>
+        )}
       </div>
 
       {/* ZOOM */}
