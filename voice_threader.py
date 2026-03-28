@@ -56,7 +56,7 @@ class VoiceThreader:
                 base_cost += 20.0  # Bottom bounds forcibly repel from inner wires
 
             # Structural notes get a massive discount for waking up outer bounding wires
-            if is_structural:
+            if is_structural and not is_inner:
                 if thread.voice_id == 0 or thread.voice_id == self.max_voices - 1:
                     base_cost += self.W_GRAVITY
                 else:
@@ -119,6 +119,10 @@ class VoiceThreader:
             else:
                 cost_gravity = abs(self.W_GRAVITY)
 
+        # Heavily penalize inner voices attempting to natively snatch the Bass wire before the True Bass iterates
+        if is_inner and thread.voice_id == self.max_voices - 1:
+            cost_gravity += 30.0
+
         return max(0.0, cost_collision + cost_elastic + cost_temp + cost_momentum + cost_register + cost_gravity)
 
     def thread_particles(self, sorted_particles, regime_frames):
@@ -146,21 +150,9 @@ class VoiceThreader:
                 chord.append(sorted_particles[i])
                 i += 1
 
-            # Sort chord by pitch descending (soprano first)
-            chord.sort(key=lambda p: -p.pitch)
-            
-            # Reorder evaluating sequence so Top and Bottom bounds evaluate FIRST, protecting outer wires
-            eval_sequence = []
-            if len(chord) > 0:
-                eval_sequence.append(chord[0])
-            if len(chord) > 1:
-                eval_sequence.append(chord[-1])
-            if len(chord) > 2:
-                eval_sequence.extend(chord[1:-1])
-
-            # Assign notes greedily. A thread can only be bought once per chord.
+            # Assign notes greedily (highest to lowest). A thread can only be bought once per chord.
             used_threads = set()
-            for p in eval_sequence:
+            for p in chord:
                 is_structural = self._is_phase1_anchor(p, regime_frames)
                 
                 is_top = False
@@ -200,6 +192,8 @@ class VoiceThreader:
                         continue
 
                     cost = self._calculate_connection_cost(p, thread, is_structural, is_top=is_top, is_bottom=is_bottom, is_inner=is_inner)
+                    if p.onset == 4000 and p.pitch == 49:
+                        print(f"DEBUG FINAL 49->V{thread.voice_id+1}: {cost}")
                     if cost < lowest_cost:
                         lowest_cost = cost
                         best_thread = thread
