@@ -62,5 +62,226 @@
       "drift_ms": 0,
       "source": "dead_reckoning"
     }
-  ]
+  ],
+  "spike_density": [
+    {
+      "t_ms": 0,
+      "count": 1
+    },
+    {
+      "t_ms": 850,
+      "count": 1
+    },
+    {
+      "t_ms": 1000,
+      "count": 1
+    },
+    {
+      "t_ms": 1350,
+      "count": 1
+    },
+    {
+      "t_ms": 1500,
+      "count": 1
+    },
+    {
+      "t_ms": 1850,
+      "count": 1
+    },
+    {
+      "t_ms": 2500,
+      "count": 1
+    },
+    {
+      "t_ms": 3000,
+      "count": 1
+    },
+    {
+      "t_ms": 3500,
+      "count": 1
+    },
+    {
+      "t_ms": 3750,
+      "count": 1
+    },
+    {
+      "t_ms": 4000,
+      "count": 1
+    },
+    {
+      "t_ms": 4800,
+      "count": 1
+    }
+  ],
+  "autocorr": [
+    {
+      "lag_ms": 500,
+      "score": 1.0
+    },
+    {
+      "lag_ms": 550,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 600,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 650,
+      "score": 0.3446
+    },
+    {
+      "lag_ms": 700,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 750,
+      "score": 0.1762
+    },
+    {
+      "lag_ms": 800,
+      "score": 0.1783
+    },
+    {
+      "lag_ms": 850,
+      "score": 0.3608
+    },
+    {
+      "lag_ms": 900,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 950,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 1000,
+      "score": 0.935
+    },
+    {
+      "lag_ms": 1050,
+      "score": 0.1893
+    },
+    {
+      "lag_ms": 1100,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 1150,
+      "score": 0.3882
+    },
+    {
+      "lag_ms": 1200,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 1250,
+      "score": 0.1991
+    },
+    {
+      "lag_ms": 1300,
+      "score": 0.2018
+    },
+    {
+      "lag_ms": 1350,
+      "score": 0.2044
+    },
+    {
+      "lag_ms": 1400,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 1450,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 1500,
+      "score": 0.8519
+    },
+    {
+      "lag_ms": 1550,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 1600,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 1650,
+      "score": 0.6667
+    },
+    {
+      "lag_ms": 1700,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 1750,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 1800,
+      "score": 0.2323
+    },
+    {
+      "lag_ms": 1850,
+      "score": 0.2359
+    },
+    {
+      "lag_ms": 1900,
+      "score": 0.2396
+    },
+    {
+      "lag_ms": 1950,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 2000,
+      "score": 0.4946
+    },
+    {
+      "lag_ms": 2050,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 2100,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 2150,
+      "score": 0.7797
+    },
+    {
+      "lag_ms": 2200,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 2250,
+      "score": 0.269
+    },
+    {
+      "lag_ms": 2300,
+      "score": 0.2738
+    },
+    {
+      "lag_ms": 2350,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 2400,
+      "score": 0.284
+    },
+    {
+      "lag_ms": 2450,
+      "score": 0.0
+    },
+    {
+      "lag_ms": 2500,
+      "score": 0.8846
+    },
+    {
+      "lag_ms": 2550,
+      "score": 0.0
+    }
+  ],
+  "autocorr_peak_ms": 1000
 }

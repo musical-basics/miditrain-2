@@ -405,7 +405,78 @@ export default function ETMEVisualizer() {
           ctx.fill();
         }
       }
+
+      // ── Spike Density Envelope ─────────────────────────────────────
+      // Draw a bar chart of spike activity (50ms bins) as a waveform
+      // strip at the very bottom of the piano roll (above the ruler).
+      const DENSITY_H = 28; // px tall strip
+      const density = gridData.spike_density || [];
+      if (density.length > 0) {
+        const maxCount = Math.max(...density.map(d => d.count), 1);
+        // faint background for density lane
+        ctx.fillStyle = 'rgba(255, 140, 20, 0.05)';
+        ctx.fillRect(0, rollH - DENSITY_H, canvasW, DENSITY_H);
+        // draw bars
+        for (const { t_ms, count } of density) {
+          const x = t_ms * effectiveScale;
+          const barH = (count / maxCount) * (DENSITY_H - 4);
+          const alpha = 0.3 + (count / maxCount) * 0.5;
+          ctx.fillStyle = `rgba(255, 150, 40, ${alpha})`;
+          ctx.fillRect(x - 1, rollH - barH - 2, Math.max(2, effectiveScale * 50 - 1), barH);
+        }
+        // label
+        ctx.font = '8px Inter';
+        ctx.fillStyle = 'rgba(255,150,40,0.5)';
+        ctx.fillText('spike density', 4, rollH - DENSITY_H + 9);
+      }
+
+      // ── Autocorrelation Curve (in ruler) ──────────────────────────
+      // Draw the ACF as a curve inside the ruler, normalized to 0→ruler top.
+      const autocorr = gridData.autocorr || [];
+      if (autocorr.length > 0) {
+        const acfH = RULER_HEIGHT - 12; // leave room for labels at bottom
+        const acfTop = rollH + 2;
+
+        // Background tint
+        ctx.fillStyle = 'rgba(255,140,20,0.04)';
+        ctx.fillRect(0, acfTop, canvasW, acfH);
+
+        // Draw curve
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(255, 165, 40, 0.6)';
+        ctx.lineWidth = 1;
+        let first = true;
+        for (const { lag_ms, score } of autocorr) {
+          const x = lag_ms * effectiveScale;
+          const y = acfTop + acfH - score * acfH;
+          if (first) { ctx.moveTo(x, y); first = false; }
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Mark the autocorr peak (= detected measure_ms)
+        const peakMs = gridData.autocorr_peak_ms;
+        const peakEntry = autocorr.find(a => a.lag_ms === peakMs);
+        if (peakEntry) {
+          const px = peakMs * effectiveScale;
+          const py = acfTop + acfH - peakEntry.score * acfH;
+          ctx.fillStyle = 'rgba(255, 220, 60, 0.95)';
+          ctx.beginPath();
+          ctx.arc(px, py, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.font = '7px Inter';
+          ctx.fillStyle = 'rgba(255,220,60,0.8)';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${peakMs}ms`, px, acfTop - 1);
+          ctx.textAlign = 'start';
+        }
+        // label
+        ctx.font = '8px Inter';
+        ctx.fillStyle = 'rgba(255,165,40,0.5)';
+        ctx.fillText('acf', 4, acfTop + 8);
+      }
     }
+
     }, [data, gridData, currentView, msPxInput, noteHeight]);
 
 
@@ -505,6 +576,23 @@ export default function ETMEVisualizer() {
             <div className="legend-item" style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, marginTop: 4 }}>
               {gridData.barlines?.filter(b => b.snapped).length}/{gridData.barlines?.length} barlines snapped
             </div>
+            <div style={{ marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8 }}>
+              <div className="legend-item">
+                <div className="legend-swatch" style={{ background: 'rgba(255,150,40,0.7)', borderRadius: 1 }} />
+                Spike Density (bottom strip)
+              </div>
+              <div className="legend-item">
+                <div className="legend-swatch" style={{ background: 'transparent', border: '1px solid rgba(255,165,40,0.6)' }} />
+                ACF curve (ruler)
+              </div>
+              {gridData.autocorr_peak_ms && (
+                <div className="legend-item" style={{ color: 'rgba(255,220,60,0.9)', fontSize: 10, marginTop: 4 }}>
+                  ◎ ACF peak: <strong>{gridData.autocorr_peak_ms}ms</strong>
+                  &nbsp;= {gridData.beats_per_measure} beats × {gridData.tactus_ms}ms
+                </div>
+              )}
+            </div>
+
           </>
         ) : <div style={{ color: 'rgba(255,255,255,0.4)' }}>No grid data loaded</div>}
       </>

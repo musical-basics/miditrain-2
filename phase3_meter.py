@@ -145,27 +145,85 @@ class MacroMeterEstimator:
 
         return sub_tactus_ms, best_tactus, best_subdivision
 
-    # ------------------------------------------------------------------
-    # Step 2: Measure Length Estimation (Spike Clustering)
-    # ------------------------------------------------------------------
-
-    def _estimate_measure_length(self, spike_times, tactus_ms):
+    def _estimate_measure_length(self, spike_times, tactus_ms, max_time):
         """
-        Cluster time deltas between TRANSITION SPIKE events to find the harmonic rhythm.
-        Uses a looser bin (100ms) because spike timing has more rubato variance than bass pulses.
+        Autocorrelation of the spike density envelope to find the dominant
+        macro-period (measure length) above the tactus level.
+
+        No hardcoded multiples of the tactus — the period is derived entirely
+        from the self-similarity of the spike pattern.
+
+        Returns:
+            measure_ms   : inferred measure length in ms
+            spike_density: list of (t_ms, count) — 50ms-binned spike histogram
+            autocorr     : list of (lag_ms, score) — normalized autocorrelation
         """
-        # Minimum measure must be at least 2× the tactus
-        min_measure = max(tactus_ms * 2, 300) if tactus_ms else 400
-        clusters = _extract_clusters(spike_times, bin_size=100, min_val=min_measure, max_val=8000)
-        if not clusters:
-            # Fallback: use 2× tactus as a guess
-            return tactus_ms * 2 if tactus_ms else 1000
+        BIN_MS = 50
+        n_bins = max(2, int(max_time / BIN_MS) + 2)
 
-        return clusters[0][0]
+        # Build density array
+        density = [0] * n_bins
+        for t in spike_times:
+            idx = int(t / BIN_MS)
+            if 0 <= idx < n_bins:
+                density[idx] += 1
 
-    # ------------------------------------------------------------------
-    # Step 3: Time Signature Derivation
-    # ------------------------------------------------------------------
+        # Autocorrelate: lags from tactus_ms up to half the total duration
+        min_lag_bins = max(1, int(tactus_ms / BIN_MS))
+        max_lag_bins = min(n_bins // 2, int(8000 / BIN_MS))
+        n = len(density)
+
+        autocorr = []
+        for lag in range(min_lag_bins, max_lag_bins + 1):
+            pairs = n - lag
+            if pairs <= 0:
+                break
+            raw = sum(density[i] * density[i + lag] for i in range(pairs))
+            score = raw / pairs  # normalize by number of overlapping pairs
+            autocorr.append((lag * BIN_MS, score))
+
+        if not autocorr:
+            return tactus_ms, density, []
+
+        # Find the dominant period: highest score above tactus.
+        # Ignore the very first bins (they'd just pick up self-similarity at sub-tactus).
+        # We look for the FIRST prominent local maximum.
+        scores = [s for _, s in autocorr]
+        max_score = max(scores) if scores else 0
+        NOISE_FLOOR = max_score * 0.25  # peaks must exceed 25% of global max
+
+        # Find all local maxima above noise floor
+        peaks = []
+        for i in range(1, len(scores) - 1):
+            if scores[i] > scores[i - 1] and scores[i] > scores[i + 1] and scores[i] > NOISE_FLOOR:
+                peaks.append((autocorr[i][0], scores[i]))
+
+        if not peaks:
+            # Flat autocorrelation — no dominant period found. Use global max.
+            best_lag_ms = max(autocorr, key=lambda x: x[1])[0]
+        else:
+            # Pick the SMALLEST lag peak that has >= 50% of the global maximum
+            # (prefer shorter periods — e.g. 1000ms over 2000ms for 2/4)
+            significant = [(lag, s) for lag, s in peaks if s >= max_score * 0.5]
+            if significant:
+                best_lag_ms = min(significant, key=lambda x: x[0])[0]
+            else:
+                best_lag_ms = min(peaks, key=lambda x: x[0])[0]
+
+        # Normalize autocorr to 0-1 for JSON export
+        autocorr_norm = [
+            {"lag_ms": lag, "score": round(s / max_score, 4) if max_score > 0 else 0}
+            for lag, s in autocorr
+        ]
+
+        # Compact density export: only bins with spikes
+        density_export = [
+            {"t_ms": i * BIN_MS, "count": density[i]}
+            for i in range(n_bins) if density[i] > 0
+        ]
+
+        return best_lag_ms, density_export, autocorr_norm
+
 
     def _derive_time_signature(self, sub_tactus_ms, tactus_ms, subdivision, measure_ms):
         """
@@ -375,15 +433,16 @@ class MacroMeterEstimator:
         if piece_start not in spike_times:
             spike_times.insert(0, piece_start)
 
-        measure_ms = self._estimate_measure_length(spike_times, tactus_ms)
+        max_time = max(n["onset"] + n["duration"] for n in self.notes) if self.notes else 0
+
+        measure_ms, spike_density, autocorr = self._estimate_measure_length(spike_times, tactus_ms, max_time)
         beats_per_measure, denominator = self._derive_time_signature(sub_tactus_ms, tactus_ms, subdivision, measure_ms)
 
         bpm_sub = round(60000 / sub_tactus_ms)
         bpm_tactus = round(60000 / tactus_ms)
         meter_label = _meter_type(beats_per_measure)
 
-        # ── Max time ────────────────────────────────────────────────────
-        max_time = max(n["onset"] + n["duration"] for n in self.notes) if self.notes else 0
+
 
         barlines = self._project_barlines(spike_times, measure_ms, tactus_ms, max_time)
 
@@ -441,6 +500,9 @@ class MacroMeterEstimator:
             "meter_type": meter_label,
             "spike_count": len(spike_times),
             "barlines": barlines,
+            "spike_density": spike_density,
+            "autocorr": autocorr,
+            "autocorr_peak_ms": int(measure_ms),
         }
 
         if write_json:
