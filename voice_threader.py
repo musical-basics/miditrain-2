@@ -173,11 +173,10 @@ class VoiceThreader:
                     elif p is chord[-1]:
                         physically_bottom = True
                         for t in threads:
-                            if t.last_pitch is not None and (t.last_end_time + 100) > p.onset:
+                            if t.last_pitch is not None and t.last_end_time > p.onset:
                                 if t.last_pitch < p.pitch:
                                     physically_bottom = False
                         
-                        # Dynamically check if the bass note falls within ~2 octaves of true baseline, OR is natively in the Bass Clef (< 60):
                         if physically_bottom and (p.pitch <= threads[-1].ideal_pitch + 24 or p.pitch < 60):
                             is_bottom = True
                             
