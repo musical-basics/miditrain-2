@@ -351,11 +351,17 @@ def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='diss
 
 
 if __name__ == "__main__":
-    midi = "pathetique_test_chunk2.mid"
+    midis = {
+        'chunk1': 'pathetique_2_test.mid',
+        'chunk2': 'pathetique_test_chunk2.mid',
+    }
+    angle_maps = ['dissonance', 'fifths']
+    break_methods = ['centroid', 'histogram', 'hybrid']
     sep = "\n" + "="*50 + "\n"
 
-    export_analysis(midi, output_json="etme_analysis.json", break_method='centroid')
-    print(sep)
-    export_analysis(midi, output_json="etme_analysis_histogram.json", break_method='histogram')
-    print(sep)
-    export_analysis(midi, output_json="etme_analysis_hybrid.json", break_method='hybrid')
+    for midi_key, midi_path in midis.items():
+        for am in angle_maps:
+            for bm in break_methods:
+                out = f"etme_{midi_key}_{am}_{bm}.json"
+                export_analysis(midi_path, output_json=out, angle_map=am, break_method=bm)
+                print(sep)

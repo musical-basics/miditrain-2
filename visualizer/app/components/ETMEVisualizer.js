@@ -56,6 +56,8 @@ export default function ETMEVisualizer() {
 
   const [data, setData] = useState(null);
   const [currentView, setCurrentView] = useState('raw');
+  const [midiFile, setMidiFile] = useState('chunk2');
+  const [angleMap, setAngleMap] = useState('dissonance');
   const [breakModel, setBreakModel] = useState('centroid');
   const [hZoom, setHZoom] = useState(10);
   const [vZoom, setVZoom] = useState(10);
@@ -63,19 +65,14 @@ export default function ETMEVisualizer() {
 
   const effectiveScaleRef = useRef(0.05);
 
-  // Load data when breakModel changes
+  // Load data when any selector changes
   useEffect(() => {
-    const files = {
-      centroid: 'etme_analysis.json',
-      histogram: 'etme_analysis_histogram.json',
-      hybrid: 'etme_analysis_hybrid.json'
-    };
-    const file = files[breakModel] || 'etme_analysis.json';
+    const file = `etme_${midiFile}_${angleMap}_${breakModel}.json`;
     fetch(`/${file}?t=${Date.now()}`)
       .then(r => r.json())
       .then(setData)
       .catch(err => console.error('Failed to load data:', err));
-  }, [breakModel]);
+  }, [midiFile, angleMap, breakModel]);
 
   // Sync scroll between keyboard and canvas
   useEffect(() => {
@@ -409,17 +406,41 @@ export default function ETMEVisualizer() {
           </button>
         ))}
         <select
-          value={breakModel}
-          onChange={e => setBreakModel(e.target.value)}
+          value={midiFile}
+          onChange={e => setMidiFile(e.target.value)}
           style={{
             marginLeft: 'auto', padding: '4px 8px', fontSize: '11px',
             background: '#1a1a2e', color: '#e0e0e0', border: '1px solid #333',
             borderRadius: '4px', cursor: 'pointer'
           }}
         >
+          <option value="chunk1">Chunk 1 (Mm. 1-4)</option>
+          <option value="chunk2">Chunk 2 (Mm. 5-8)</option>
+        </select>
+        <select
+          value={angleMap}
+          onChange={e => setAngleMap(e.target.value)}
+          style={{
+            padding: '4px 8px', fontSize: '11px',
+            background: '#1a1a2e', color: '#e0e0e0', border: '1px solid #333',
+            borderRadius: '4px', cursor: 'pointer'
+          }}
+        >
+          <option value="dissonance">Dissonance Map</option>
+          <option value="fifths">Circle of 5ths</option>
+        </select>
+        <select
+          value={breakModel}
+          onChange={e => setBreakModel(e.target.value)}
+          style={{
+            padding: '4px 8px', fontSize: '11px',
+            background: '#1a1a2e', color: '#e0e0e0', border: '1px solid #333',
+            borderRadius: '4px', cursor: 'pointer'
+          }}
+        >
           <option value="centroid">Centroid (Angle)</option>
-          <option value="histogram">Histogram (Cosine Sim)</option>
-          <option value="hybrid">Hybrid (Angle + Jaccard)</option>
+          <option value="histogram">Histogram (Cosine)</option>
+          <option value="hybrid">Hybrid (Angle+Jaccard)</option>
         </select>
       </div>
 
