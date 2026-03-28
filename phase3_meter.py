@@ -124,7 +124,9 @@ class MacroMeterEstimator:
 
         # Search for the STRONGEST cluster at an integer multiple of sub_tactus.
         # We evaluate all ratios and pick the one with the highest count.
-        candidate_ratios = [2, 3, 4]
+        # Include 6 to cover triplet-16th → quarter-note subdivisions
+        # (e.g. Pathétique arpeggios: 6 × 80ms = 480ms ≈ 500ms quarter note)
+        candidate_ratios = [2, 3, 4, 6]
         best_tactus = sub_tactus_ms
         best_subdivision = 1
         best_count = 0
@@ -134,11 +136,12 @@ class MacroMeterEstimator:
             tolerance = sub_tactus_ms * 0.35  # ±35% of sub-tactus
             for interval_ms, count in clusters:
                 if abs(interval_ms - target) <= tolerance:
-                    if count > best_count:
+                    if count > best_count:  # count is authoritative — higher count wins
                         best_count = count
                         best_tactus = interval_ms  # use actual cluster center
                         best_subdivision = ratio
                     break
+
 
         return sub_tactus_ms, best_tactus, best_subdivision
 
