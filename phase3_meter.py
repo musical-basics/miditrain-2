@@ -212,22 +212,30 @@ class MacroMeterEstimator:
     def _project_barlines(self, spike_times, measure_ms, tactus_ms, max_time):
         """
         Projects barlines elastically:
-        - Start from the first spike (or t=0).
+        - Start from piece start (spike_times[0], always 0ms or first regime).
         - Advance by measure_ms each step.
-        - If a real spike falls within ±tactus_ms*0.5, snap to it (rubato-corrected).
+        - If a real spike falls within ±tactus_ms*0.4, snap to it (rubato-corrected).
+        - Enforces a minimum gap of measure_ms*0.5 between consecutive barlines
+          to prevent beat-level spikes from being misidentified as barlines.
         - Otherwise, dead-reckon forward.
 
         Returns list of dicts: {measure, time_ms, snapped, drift_ms, source}
         """
-        snap_window = int(tactus_ms * 0.5) if tactus_ms else 200
+        snap_window = int(tactus_ms * 0.4) if tactus_ms else 200
+        min_barline_gap = int(measure_ms * 0.5)  # minimum gap between two barlines
         start_time = spike_times[0] if spike_times else 0
         barlines = []
         current_time = start_time
+        last_barline_time = -9999
         measure = 1
 
         while current_time <= max_time + measure_ms:
-            # Look for a nearby real spike
-            nearby = [s for s in spike_times if abs(s - current_time) <= snap_window]
+            # Look for a nearby real spike, but only if we're far enough from the last barline
+            nearby = [
+                s for s in spike_times
+                if abs(s - current_time) <= snap_window
+                and s - last_barline_time >= min_barline_gap
+            ]
             if nearby:
                 actual = min(nearby, key=lambda s: abs(s - current_time))
                 drift = actual - current_time
@@ -239,6 +247,7 @@ class MacroMeterEstimator:
                     "source": "spike"
                 })
                 current_time = actual
+                last_barline_time = actual
             else:
                 barlines.append({
                     "measure": measure,
@@ -247,6 +256,7 @@ class MacroMeterEstimator:
                     "drift_ms": 0,
                     "source": "dead_reckoning"
                 })
+                last_barline_time = current_time
 
             current_time += measure_ms
             measure += 1
@@ -288,9 +298,11 @@ class MacroMeterEstimator:
         spike_times = sorted(
             [r["start_time"] for r in self.regimes if r["state"] == "TRANSITION SPIKE!"]
         )
-        # Ensure piece start is included as a downbeat anchor
+        # ALWAYS anchor the grid at piece start (0ms or first regime start).
+        # The piece always begins on Beat 1, Measure 1, regardless of when the
+        # first harmonic spike fires. Spikes mark harmonic events, NOT necessarily barlines.
         piece_start = self.regimes[0]["start_time"] if self.regimes else 0
-        if not spike_times or spike_times[0] > piece_start + tactus_ms:
+        if piece_start not in spike_times:
             spike_times.insert(0, piece_start)
 
         measure_ms = self._estimate_measure_length(spike_times, tactus_ms)
