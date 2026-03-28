@@ -30,7 +30,7 @@ class VoiceThreader:
         self.W_TEMPERATURE = 2.0      # Cost per second of silence/cooling (Δt)
         self.W_MOMENTUM_PENALTY = 2.0 # Cost to abruptly reverse trajectory
         self.W_GRAVITY = -15.0        # Discount for aligning with Phase 1 Anchors
-        self.W_SPAWN_PENALTY = 40.0   # Cost to initialize an empty thread
+        self.W_SPAWN_PENALTY = 25.0   # Cost to initialize an empty thread
         self.W_REGISTER = 0.75        # Restoring force pulling threads back to their ideal lane
         self.W_COLLISION = 10.0       # Soft Pauli exclusion for pedal overlaps
 
@@ -73,7 +73,7 @@ class VoiceThreader:
             # This precisely overcomes the 40.0 'empty wire' inertia, guaranteeing empty adjacent strings wake up to capture harmony notes.
             # However, it remains vastly cheaper than the ~150+ collision cost of overlapping a non-simultaneous sustained string, 
             # allowing overflowing 5-note chords to naturally stack inside their closest active register.
-            cost_collision = 45.0
+            cost_collision = 35.0
         else:
             # Instead of throwing 'inf' for pedal overlaps, allow them but penalize them heavily.
             overlap_ms = thread.last_end_time - p.onset
@@ -192,8 +192,7 @@ class VoiceThreader:
                 # Cost auction across all available threads
                 for thread in threads:
                     cost = self._calculate_connection_cost(p, thread, is_structural, is_top=is_top, is_bottom=is_bottom, is_inner=is_inner)
-                    if p.onset == 4000 and p.pitch == 49:
-                        print(f"DEBUG FINAL 49->V{thread.voice_id+1}: {cost}")
+                    
                     if cost < lowest_cost:
                         lowest_cost = cost
                         best_thread = thread
