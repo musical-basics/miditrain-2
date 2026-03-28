@@ -100,17 +100,23 @@ class HarmonicRegimeDetector:
             return 0.0
         return dot / (mag1 * mag2)
 
-    def _jaccard_similarity(self, particles_a, particles_b):
-        """Jaccard similarity of pitch-class sets (ignoring mass)."""
-        set_a = {SEMITONE_MAP.get(p['interval'], 0) for p in particles_a}
-        set_b = {SEMITONE_MAP.get(p['interval'], 0) for p in particles_b}
+    def _get_dominant_pcs(self, particles):
+        """Extract set of pitch classes from particles, ignoring trace elements < 20% of max mass."""
+        if not particles:
+            return set()
+        max_m = max(p['mass'] for p in particles)
+        threshold = max_m * 0.20
+        return {SEMITONE_MAP.get(p['interval'], 0) for p in particles if p['mass'] >= threshold}
+
+    def _jaccard_similarity(self, set_a, set_b):
+        """Jaccard similarity of two sets."""
         if not set_a and not set_b:
             return 1.0
         intersection = len(set_a & set_b)
         union = len(set_a | set_b)
         return intersection / union if union > 0 else 0.0
 
-    def _should_break(self, anchor_particles, combined_pending, diff, pmass):
+    def _should_break(self, anchor_particles, combined_pending, diff, pmass, is_subset=False):
         """Determine if a regime break should occur based on the chosen method."""
         if pmass <= self.min_break_mass:
             return False
@@ -126,11 +132,19 @@ class HarmonicRegimeDetector:
             return cosine_sim < 0.7
 
         elif self.break_method == 'hybrid':
-            # Either centroid angle OR Jaccard set difference triggers a break
+            # 1. Subset Rule: if incoming notes are just a re-voicing/subset of the 
+            # established regime, suppress the break (even if angle diff is large due to volume).
+            if is_subset:
+                return False
+
+            # 2. Angle Rule
             if diff > self.break_angle:
                 return True
-            jaccard = self._jaccard_similarity(anchor_particles, combined_pending)
-            # Break if fewer than 50% pitch classes overlap
+                
+            # 3. Set Divergence Rule
+            set_a = self._get_dominant_pcs(anchor_particles)
+            set_b = self._get_dominant_pcs(combined_pending)
+            jaccard = self._jaccard_similarity(set_a, set_b)
             return jaccard < 0.5
 
         return diff > self.break_angle  # fallback
@@ -147,7 +161,7 @@ class HarmonicRegimeDetector:
         Returns:
             List of dicts with: Time (ms), Regime_ID, Hue, Sat (%), V_vec, State, debug
         """
-        anchor_particles = []      # Pure notes that define the regime's unmoving center
+        anchor_profile = {}        # {interval: weight} — persistent core of the regime
         regime_all_particles = []  # All notes merged into the regime (for pure color output)
         limbo_frames = []
         frame_assignments = {}
@@ -179,8 +193,9 @@ class HarmonicRegimeDetector:
                 })
 
             # --- Bootstrap: first frame seeds the anchor ---
-            if not anchor_particles:
-                anchor_particles = particles.copy()
+            if not anchor_profile:
+                for p in particles:
+                    anchor_profile[p['interval']] = anchor_profile.get(p['interval'], 0) + p['mass']
                 regime_all_particles = particles.copy()
                 frame_assignments[time_ms] = {
                     'regime_id': current_regime_id, 'state': 'Regime Locked',
@@ -193,7 +208,8 @@ class HarmonicRegimeDetector:
             combined_limbo = [p for _, lf_parts in limbo_frames for p in lf_parts]
             combined_pending = combined_limbo + particles
 
-            # ANCHOR ISOLATION: centroid is calculated strictly from the establishing chord
+            # ANCHOR ISOLATION: Construct pseudo-particles from the persistent profile
+            anchor_particles = [{'interval': i, 'mass': w, 'angle': self.interval_angles.get(i, 0)} for i, w in anchor_profile.items()]
             rx, ry, rmass = self._compute_vector(anchor_particles)
             r_angle, r_sat = self._get_hue_sat(rx, ry)
 
@@ -210,8 +226,15 @@ class HarmonicRegimeDetector:
                 'particles': [{'int': p['interval'], 'o': p['octave'], 'm': round(p['mass'], 2)} for p in particles]
             }
 
+            # Check subset rule for hybrid/histogram methods to suppress false spikes/limbos
+            is_subset = False
+            if self.break_method in ('hybrid', 'histogram'):
+                set_a = self._get_dominant_pcs(anchor_particles)
+                set_b = self._get_dominant_pcs(combined_pending)
+                is_subset = bool(set_b and set_b.issubset(set_a))
+
             # ─── CASE 1: REGIME BREAK ───────────────────────────
-            if self._should_break(anchor_particles, combined_pending, diff, pmass):
+            if self._should_break(anchor_particles, combined_pending, diff, pmass, is_subset):
                 # Flush all limbo notes into the OLD regime (time ordering)
                 for lf_time, lf_parts in limbo_frames:
                     regime_all_particles.extend(lf_parts)
@@ -223,7 +246,9 @@ class HarmonicRegimeDetector:
                 current_regime_id += 1
 
                 # New regime starts cleanly from JUST the triggering frame
-                anchor_particles = particles.copy()
+                anchor_profile = {}
+                for p in particles:
+                    anchor_profile[p['interval']] = anchor_profile.get(p['interval'], 0) + p['mass']
                 regime_all_particles = particles.copy()
                 limbo_frames = []
                 frame_assignments[time_ms] = {
@@ -232,14 +257,34 @@ class HarmonicRegimeDetector:
                 }
 
             # ─── CASE 2: MERGE (harmonically compatible) ────────
-            elif diff <= self.merge_angle:
+            elif diff <= self.merge_angle or is_subset:
                 for lf_time, lf_parts in limbo_frames:
                     regime_all_particles.extend(lf_parts)
                     if lf_time in frame_assignments:
                         frame_assignments[lf_time]['state'] = 'Stable'
 
                 regime_all_particles.extend(particles)
-                # CRITICAL: We do NOT append to anchor_particles! Prevents Centroid Drift.
+                
+                # CRITICAL: Reinforce persistent anchor notes, decay absent ones
+                current_intervals = {p['interval'] for p in particles}
+                
+                # Reinforce present notes
+                for p in particles:
+                    i = p['interval']
+                    if i in anchor_profile:
+                        # Reward persistence (cap at 5.0)
+                        anchor_profile[i] = min(5.0, anchor_profile[i] + p['mass'])
+                    else:
+                        # Introduce new voices at their baseline mass
+                        anchor_profile[i] = p['mass']
+                
+                # Decay absent notes
+                for i in list(anchor_profile.keys()):
+                    if i not in current_intervals:
+                        anchor_profile[i] *= 0.8
+                        if anchor_profile[i] < 0.1:
+                            del anchor_profile[i]
+
                 frame_assignments[time_ms] = {
                     'regime_id': current_regime_id, 'state': 'Stable',
                     'debug': frame_debug
