@@ -354,6 +354,7 @@ if __name__ == "__main__":
     midis = {
         'chunk1': 'pathetique_2_test.mid',
         'chunk2': 'pathetique_test_chunk2.mid',
+        'chunk3': 'pathetique_test_chunk3.mid',
     }
     angle_maps = ['dissonance', 'fifths']
     break_methods = ['centroid', 'histogram', 'hybrid']

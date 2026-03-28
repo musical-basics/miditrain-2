@@ -416,6 +416,7 @@ export default function ETMEVisualizer() {
         >
           <option value="chunk1">Chunk 1 (Mm. 1-4)</option>
           <option value="chunk2">Chunk 2 (Mm. 5-8)</option>
+          <option value="chunk3">Chunk 3 (Mm. 9-12)</option>
         </select>
         <select
           value={angleMap}
