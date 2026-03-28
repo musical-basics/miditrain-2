@@ -27,17 +27,19 @@
     },
     {
       "measure": 3,
-      "time_ms": 1500,
-      "snapped": true,
-      "drift_ms": -100,
-      "source": "spike"
+      "time_ms": 1600,
+      "snapped": false,
+      "drift_ms": 0,
+      "source": "corrected_dead_reckoning",
+      "veto_reason": "spike@1500ms interval=short (700ms vs expected 800ms); no bass closer to spike than to projected@1600ms"
     },
     {
       "measure": 4,
-      "time_ms": 2250,
-      "snapped": true,
-      "drift_ms": -50,
-      "source": "spike"
+      "time_ms": 2400,
+      "snapped": false,
+      "drift_ms": 0,
+      "source": "corrected_dead_reckoning",
+      "veto_reason": "spike@2250ms interval=short (650ms vs expected 800ms); no bass closer to spike than to projected@2400ms"
     },
     {
       "measure": 5,
@@ -83,14 +85,15 @@
     },
     {
       "measure": 11,
-      "time_ms": 7500,
-      "snapped": true,
-      "drift_ms": -100,
-      "source": "spike"
+      "time_ms": 7600,
+      "snapped": false,
+      "drift_ms": 0,
+      "source": "corrected_dead_reckoning",
+      "veto_reason": "spike@7500ms interval=short (700ms vs expected 800ms); no bass closer to spike than to projected@7600ms"
     },
     {
       "measure": 12,
-      "time_ms": 8300,
+      "time_ms": 8400,
       "snapped": false,
       "drift_ms": 0,
       "source": "dead_reckoning"

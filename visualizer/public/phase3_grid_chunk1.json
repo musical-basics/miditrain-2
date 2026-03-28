@@ -41,14 +41,15 @@
     },
     {
       "measure": 5,
-      "time_ms": 3875,
-      "snapped": true,
-      "drift_ms": -125,
-      "source": "spike"
+      "time_ms": 4000,
+      "snapped": false,
+      "drift_ms": 0,
+      "source": "corrected_dead_reckoning",
+      "veto_reason": "spike@3875ms interval=short (875ms vs expected 1000ms); no bass closer to spike than to projected@4000ms"
     },
     {
       "measure": 6,
-      "time_ms": 4875,
+      "time_ms": 5000,
       "snapped": false,
       "drift_ms": 0,
       "source": "dead_reckoning"

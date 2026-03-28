@@ -262,10 +262,77 @@ class MacroMeterEstimator:
             measure += 1
 
         return barlines
+    def _check_and_repair_barlines(self, barlines, measure_ms, bass_times, tactus_ms):
+        """
+        Pass 2: Consistency repair.
 
-    # ------------------------------------------------------------------
-    # Public: estimate()
-    # ------------------------------------------------------------------
+        After Pass 1, check if any inter-barline interval deviates from the
+        expected measure_ms by more than CONSISTENCY_TOLERANCE. If so, the
+        spike that caused the snap was a mid-measure harmonic event, not a
+        true barline. Revoke the snap ONLY IF the snapped spike had no nearby
+        bass note (bass-coincidence veto). Replace with a dead-reckoned position.
+
+        Bass-coincidence window: ±tactus_ms * 0.1 (very tight — 50ms for 500ms tactus).
+        """
+        CONSISTENCY_TOLERANCE = 0.15  # 15% deviation from expected measure_ms triggers check
+        # Bass coincidence window: ±30% of tactus. At 500ms tactus → ±150ms.
+        # This is intentionally wider than the strict 50ms to account for rubato —
+        # the bassist might land slightly before or after the spike.
+        BASS_COINCIDENCE_WINDOW = int(tactus_ms * 0.3) if bass_times else 150
+
+        repaired = list(barlines)  # work on a copy
+        changed = False
+
+        for i in range(1, len(repaired)):
+            interval = repaired[i]["time_ms"] - repaired[i - 1]["time_ms"]
+            projected_time = repaired[i - 1]["time_ms"] + measure_ms  # mathematically correct position
+
+            # Flag if interval is too short (early snap) OR too long (late snap)
+            too_short = interval < measure_ms * 0.90
+            too_long  = interval > measure_ms * 1.10
+
+            suspect = (too_short or too_long) and repaired[i]["snapped"]
+
+            if suspect:
+                snapped_time = repaired[i]["time_ms"]
+
+                # A bass note confirms the spike ONLY IF:
+                #   1. It's within the coincidence window of the spike, AND
+                #   2. It's strictly closer to the spike than to the projected barline.
+                #      A bass note equidistant or closer to the projection belongs
+                #      to the mathematically correct barline, not this rogue spike.
+                bass_nearby = any(
+                    abs(b - snapped_time) <= BASS_COINCIDENCE_WINDOW
+                    and abs(b - snapped_time) < abs(b - projected_time)
+                    for b in bass_times
+                )
+
+                if not bass_nearby:
+                    repaired[i] = {
+                        "measure": repaired[i]["measure"],
+                        "time_ms": int(projected_time),
+                        "snapped": False,
+                        "drift_ms": 0,
+                        "source": "corrected_dead_reckoning",
+                        "veto_reason": (
+                            f"spike@{snapped_time}ms interval={'short' if too_short else 'long'} "
+                            f"({interval}ms vs expected {int(measure_ms)}ms); "
+                            f"no bass closer to spike than to projected@{int(projected_time)}ms"
+                        )
+                    }
+                    changed = True
+                    # Cascade: adjust subsequent dead-reckoned barlines
+                    for j in range(i + 1, len(repaired)):
+                        if not repaired[j]["snapped"]:
+                            repaired[j] = dict(repaired[j])
+                            repaired[j]["time_ms"] = repaired[j - 1]["time_ms"] + measure_ms
+                        else:
+                            break  # next snapped barline is a real anchor, stop cascading
+
+        return repaired, changed
+
+
+
 
     def estimate(self, write_json=False):
         """
@@ -317,6 +384,9 @@ class MacroMeterEstimator:
 
         barlines = self._project_barlines(spike_times, measure_ms, tactus_ms, max_time)
 
+        # ── Pass 2: Consistency repair (bass-coincidence veto) ────────────
+        barlines, pass2_triggered = self._check_and_repair_barlines(barlines, measure_ms, bass_onsets, tactus_ms)
+
         # ── Report ──────────────────────────────────────────────────────
         print(f"\n  📊  PULSE ANALYSIS")
         print(f"  {'─'*50}")
@@ -337,13 +407,22 @@ class MacroMeterEstimator:
         print(f"\n  📏  BARLINE GRID  ({len(barlines)} measures projected)")
         print(f"  {'─'*50}")
         snapped = sum(1 for b in barlines if b["snapped"])
+        vetoed = sum(1 for b in barlines if b.get("source") == "corrected_dead_reckoning")
         print(f"  Snapped to spikes:  {snapped}/{len(barlines)}  ({round(100*snapped/max(1,len(barlines)))}%)")
+        if pass2_triggered:
+            print(f"  ⚕️  Pass 2 consistency repair: {vetoed} barline(s) corrected (spike had no bass confirmation)")
         print()
         for b in barlines:
-            snap_str = f"← SPIKE  drift:{b['drift_ms']:+d}ms" if b["snapped"] else "↔ dead-reckoned"
+            if b["snapped"]:
+                snap_str = f"← SPIKE  drift:{b['drift_ms']:+d}ms"
+            elif b.get("source") == "corrected_dead_reckoning":
+                snap_str = f"⚕️  corrected  [{b.get('veto_reason', '')}]"
+            else:
+                snap_str = "↔ dead-reckoned"
             print(f"    Measure {b['measure']:02d}:  {b['time_ms']:6d} ms    {snap_str}")
 
         print(f"\n{sep}\n")
+
 
         # ── Build result dict ────────────────────────────────────────────
         result = {
