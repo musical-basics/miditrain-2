@@ -121,9 +121,11 @@ class VoiceThreader:
                 if thread.last_pitch != p.pitch:
                     cost_gravity = abs(self.W_GRAVITY)
 
-        # Heavily penalize inner voices attempting to natively snatch the Bass wire before the True Bass iterates
-        if is_inner and thread.voice_id == self.max_voices - 1:
-            cost_gravity += 30.0
+        # Heavily penalize outer boundary voices attempting to natively snatch the internal filling wires
+        if is_inner and (thread.voice_id == self.max_voices - 1 or thread.voice_id == 0):
+            # Only trigger inner-snatch repel if the outer wire isn't ALREADY holding this exact inner unision pitch!
+            if thread.last_pitch != p.pitch:
+                cost_gravity += 30.0
             
         return max(0.0, cost_collision + cost_elastic + cost_temp + cost_momentum + cost_register + cost_gravity)
 
