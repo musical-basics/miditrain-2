@@ -36,7 +36,7 @@ class VoiceThreader:
 
         self.LEGATO_GRACE_MS = 40     # Allow 40ms of overlap for human legato
 
-    def _calculate_connection_cost(self, p, thread, is_structural, is_top=False, is_bottom=False, is_inner=False):
+    def _calculate_connection_cost(self, p, thread, all_threads, is_structural, is_top=False, is_bottom=False, is_inner=False):
         """Calculates the energy (ΔE) required to append particle 'p' to 'thread'."""
 
         # Base case: Empty thread initialization
@@ -126,8 +126,33 @@ class VoiceThreader:
             # Only trigger inner-snatch repel if the outer wire isn't ALREADY holding this exact inner unision pitch!
             if thread.last_pitch != p.pitch:
                 cost_gravity += 30.0
+                
+        # 7. STRICT TOPOLOGICAL ORDERING (Non-Crossing Constraint)
+        # Prevents Voice 2 from diving beneath Voice 3's CURRENTLY RINGING pitch to 'assist' heavy chords
+        cost_topology = 0.0
+        for other in all_threads:
+            if other.voice_id == thread.voice_id: 
+                continue
+                
+            is_active = False
+            # If the other thread's EXACT note overlaps with this evaluated note, it is actively occupying physical space!
+            if other.last_end_time != -9999 and other.last_onset != -9999:
+                overlap = max(0, other.last_end_time - p.onset)
+                # If they share the exact onset, they are simultaneously evaluating inside the same block chord!
+                if overlap > 0 or other.last_onset == p.onset:
+                    is_active = True
+                    
+            if is_active and other.last_pitch is not None:
+                if thread.voice_id < other.voice_id:
+                    # Thread is a HIGHER voice (e.g. Alto vs Tenor). It CANNOT drop equal to or below other's pitch.
+                    if p.pitch <= other.last_pitch:
+                        cost_topology += 60.0
+                elif thread.voice_id > other.voice_id:
+                    # Thread is a LOWER voice. It CANNOT rise equal to or above other's pitch.
+                    if p.pitch >= other.last_pitch:
+                        cost_topology += 60.0
             
-        return max(0.0, cost_collision + cost_elastic + cost_temp + cost_momentum + cost_register + cost_gravity)
+        return max(0.0, cost_collision + cost_elastic + cost_temp + cost_momentum + cost_register + cost_gravity + cost_topology)
 
     def thread_particles(self, sorted_particles, regime_frames):
         """Scans left-to-right, threading particles into the path of least resistance."""
@@ -191,7 +216,7 @@ class VoiceThreader:
 
                 # Cost auction across all available threads
                 for thread in threads:
-                    cost = self._calculate_connection_cost(p, thread, is_structural, is_top=is_top, is_bottom=is_bottom, is_inner=is_inner)
+                    cost = self._calculate_connection_cost(p, thread, threads, is_structural, is_top=is_top, is_bottom=is_bottom, is_inner=is_inner)
                     
                     if cost < lowest_cost:
                         lowest_cost = cost
