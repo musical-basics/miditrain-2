@@ -48,12 +48,13 @@ class HarmonicRegimeDetector:
     """
 
     def __init__(self, break_angle=40.0, min_break_mass=0.8, merge_angle=25.0,
-                 angle_map='dissonance', break_method='centroid'):
+                 angle_map='dissonance', break_method='centroid', debounce_ms=100):
         self.break_angle = break_angle
         self.min_break_mass = min_break_mass
         self.merge_angle = merge_angle
         self.interval_angles = ANGLE_MAPS.get(angle_map, INTERVAL_ANGLES_DISSONANCE)
         self.break_method = break_method
+        self.debounce_ms = debounce_ms
 
     # ------------------------------------------------------------------
     # Vector math helpers
@@ -105,7 +106,7 @@ class HarmonicRegimeDetector:
         if not particles:
             return set()
         max_m = max(p['mass'] for p in particles)
-        threshold = max_m * 0.20
+        threshold = max_m * 0.15
         return {SEMITONE_MAP.get(p['interval'], 0) for p in particles if p['mass'] >= threshold}
 
     def _jaccard_similarity(self, set_a, set_b):
@@ -164,6 +165,7 @@ class HarmonicRegimeDetector:
         anchor_profile = {}        # {interval: weight} — persistent core of the regime
         regime_all_particles = []  # All notes merged into the regime (for pure color output)
         limbo_frames = []
+        pending_spike_frames = []  # Neighbor Tone Limbo (Probation)
         frame_assignments = {}
         regimes = []
         current_regime_id = 0
@@ -233,31 +235,77 @@ class HarmonicRegimeDetector:
                 set_b = self._get_dominant_pcs(combined_pending)
                 is_subset = bool(set_b and set_b.issubset(set_a))
 
-            # ─── CASE 1: REGIME BREAK ───────────────────────────
-            if self._should_break(anchor_particles, combined_pending, diff, pmass, is_subset):
-                # Flush all limbo notes into the OLD regime (time ordering)
-                for lf_time, lf_parts in limbo_frames:
-                    regime_all_particles.extend(lf_parts)
-                    if lf_time in frame_assignments:
-                        frame_assignments[lf_time]['regime_id'] = current_regime_id
-                        frame_assignments[lf_time]['state'] = 'Stable'
+            # ─── CASE 1: REGIME BREAK (OR PENDING SPIKE) ────────
+            if self._should_break(anchor_particles, combined_pending, diff, pmass, is_subset) or \
+               (pending_spike_frames and not (diff <= self.merge_angle or is_subset)):
+                
+                # Tension is initiated or continuing
+                pending_spike_frames.append((time_ms, particles, frame_debug))
+                
+                first_spike_time = pending_spike_frames[0][0]
+                if time_ms - first_spike_time >= self.debounce_ms:
+                    # PROBATION FAILED: CONFIRM SPIKE
+                    # 1. Flush limbo frames into OLD regime
+                    for lf_time, lf_parts in limbo_frames:
+                        regime_all_particles.extend(lf_parts)
+                        if lf_time in frame_assignments:
+                            frame_assignments[lf_time]['regime_id'] = current_regime_id
+                            frame_assignments[lf_time]['state'] = 'Stable'
 
-                regimes.append(regime_all_particles)
-                current_regime_id += 1
+                    # 2. Finalize OLD regime
+                    regimes.append(regime_all_particles)
+                    current_regime_id += 1
 
-                # New regime starts cleanly from JUST the triggering frame
-                anchor_profile = {}
-                for p in particles:
-                    anchor_profile[p['interval']] = anchor_profile.get(p['interval'], 0) + p['mass']
-                regime_all_particles = particles.copy()
-                limbo_frames = []
-                frame_assignments[time_ms] = {
-                    'regime_id': current_regime_id, 'state': 'TRANSITION SPIKE!',
-                    'debug': frame_debug
-                }
+                    # 3. New regime starts cleanly from the FIRST pending spike
+                    first_parts = pending_spike_frames[0][1]
+                    anchor_profile = {}
+                    for p in first_parts:
+                        anchor_profile[p['interval']] = anchor_profile.get(p['interval'], 0) + p['mass']
+                    
+                    regime_all_particles = []
+                    
+                    # 4. Flush all pending spikes into NEW regime
+                    for ps_time, ps_parts, ps_debug in pending_spike_frames:
+                        regime_all_particles.extend(ps_parts)
+                        state = 'TRANSITION SPIKE!' if ps_time == first_spike_time else 'Stable'
+                        frame_assignments[ps_time] = {
+                            'regime_id': current_regime_id, 'state': state,
+                            'debug': ps_debug
+                        }
+                        
+                        # Reinforce anchor for subsequent frames in the queue
+                        if ps_time != first_spike_time:
+                            cur_ints = {p['interval'] for p in ps_parts}
+                            for p in ps_parts:
+                                i = p['interval']
+                                anchor_profile[i] = min(3.0, anchor_profile.get(i, 0) + p['mass'])
+                            for i in list(anchor_profile.keys()):
+                                if i not in cur_ints:
+                                    anchor_profile[i] *= 0.95
+                                    if anchor_profile[i] < 0.05:
+                                        del anchor_profile[i]
+                                        
+                    limbo_frames = []
+                    pending_spike_frames = []
+                else:
+                    # PROBATION: Tension has not yet exceeded debounce_ms, wait.
+                    frame_assignments[time_ms] = {
+                        'regime_id': current_regime_id, 'state': 'Pending Spike',
+                        'debug': frame_debug
+                    }
 
             # ─── CASE 2: MERGE (harmonically compatible) ────────
             elif diff <= self.merge_angle or is_subset:
+                # RESOLUTION: Swallow any pending spikes back into the regime
+                if pending_spike_frames:
+                    for ps_time, ps_parts, ps_debug in pending_spike_frames:
+                        regime_all_particles.extend(ps_parts)
+                        frame_assignments[ps_time] = {
+                            'regime_id': current_regime_id, 'state': 'Swallowed Spike',
+                            'debug': ps_debug
+                        }
+                    pending_spike_frames = []
+                    
                 for lf_time, lf_parts in limbo_frames:
                     regime_all_particles.extend(lf_parts)
                     if lf_time in frame_assignments:
@@ -272,8 +320,8 @@ class HarmonicRegimeDetector:
                 for p in particles:
                     i = p['interval']
                     if i in anchor_profile:
-                        # Reward persistence (cap at 5.0)
-                        anchor_profile[i] = min(5.0, anchor_profile[i] + p['mass'])
+                        # Reward persistence (cap at 3.0)
+                        anchor_profile[i] = min(3.0, anchor_profile[i] + p['mass'])
                     else:
                         # Introduce new voices at their baseline mass
                         anchor_profile[i] = p['mass']
@@ -281,8 +329,8 @@ class HarmonicRegimeDetector:
                 # Decay absent notes
                 for i in list(anchor_profile.keys()):
                     if i not in current_intervals:
-                        anchor_profile[i] *= 0.8
-                        if anchor_profile[i] < 0.1:
+                        anchor_profile[i] *= 0.95
+                        if anchor_profile[i] < 0.05:
                             del anchor_profile[i]
 
                 frame_assignments[time_ms] = {
@@ -300,12 +348,31 @@ class HarmonicRegimeDetector:
                 }
 
         # --- Clean up: flush remaining limbo into current regime ---
-        if limbo_frames:
+        if pending_spike_frames:
+            # File ended during a spike probation -> Confirm the spike as the final regime
+            first_spike_time = pending_spike_frames[0][0]
             for lf_time, lf_parts in limbo_frames:
                 regime_all_particles.extend(lf_parts)
                 if lf_time in frame_assignments:
                     frame_assignments[lf_time]['state'] = 'Stable'
-        regimes.append(regime_all_particles)
+            regimes.append(regime_all_particles)
+            current_regime_id += 1
+            
+            regime_all_particles = []
+            for ps_time, ps_parts, ps_debug in pending_spike_frames:
+                regime_all_particles.extend(ps_parts)
+                state = 'TRANSITION SPIKE!' if ps_time == first_spike_time else 'Stable'
+                if ps_time in frame_assignments:
+                    frame_assignments[ps_time]['regime_id'] = current_regime_id
+                    frame_assignments[ps_time]['state'] = state
+            regimes.append(regime_all_particles)
+        else:
+            if limbo_frames:
+                for lf_time, lf_parts in limbo_frames:
+                    regime_all_particles.extend(lf_parts)
+                    if lf_time in frame_assignments:
+                        frame_assignments[lf_time]['state'] = 'Stable'
+            regimes.append(regime_all_particles)
 
         # --- Compute pure colors for each completed regime block ---
         regime_colors = {}
