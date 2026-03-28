@@ -151,10 +151,19 @@ class VoiceThreader:
 
             # Sort chord by pitch descending (soprano first)
             chord.sort(key=lambda p: -p.pitch)
+            
+            # Reorder evaluating sequence so Top and Bottom bounds evaluate FIRST, protecting outer wires
+            eval_sequence = []
+            if len(chord) > 0:
+                eval_sequence.append(chord[0])
+            if len(chord) > 1:
+                eval_sequence.append(chord[-1])
+            if len(chord) > 2:
+                eval_sequence.extend(chord[1:-1])
 
-            # Assign notes greedily (highest to lowest). A thread can only be bought once per chord.
+            # Assign notes greedily. A thread can only be bought once per chord.
             used_threads = set()
-            for p in chord:
+            for p in eval_sequence:
                 is_structural = self._is_phase1_anchor(p, regime_frames)
                 
                 is_top = False
