@@ -150,43 +150,31 @@ class VoiceThreader:
                 # so a 2-note chord gets V1 + V4, not V1 + V2.
                 available_threads.sort(key=lambda t: t.voice_id)
 
-                # We need to pick exactly N threads for N notes.
-                num_notes = len(chord)
-                if len(available_threads) > num_notes:
-                    selected = set()
+                # We map the notes in `chord` to `available_threads`.
+                # We prioritize structural outer limits: V1 for Soprano, V4 for Bass.
+                chord_assignment = [None] * len(chord)
+                if available_threads:
+                    avail_copy = list(available_threads)
                     
-                    # Find true structural outer voices in the available pool
-                    v1 = next((t for t in available_threads if t.voice_id == 0), None)
-                    v4 = next((t for t in available_threads if t.voice_id == self.max_voices - 1), None)
-
-                    # 1. Take true Voice 1 (Soprano) if available
-                    if num_notes > 0 and v1:
-                        selected.add(v1)
+                    # 1. Assign highest note to highest available thread
+                    chord_assignment[0] = avail_copy.pop(0)
                     
-                    # 2. Take true Voice 4 (Bass) if available
-                    if num_notes > 1 and v4:
-                        selected.add(v4)
-                        
-                    # 3. Fill the rest of the required threads strictly top-down (V2, V3...)
-                    # This guarantees we don't artificially force a Tenor to play an Alto line
-                    # just because the Bass was busy.
-                    for t in available_threads:
-                        if len(selected) == num_notes:
-                            break
-                        selected.add(t)
-                    
-                    # Sort selected threads by voice_id so rank assignment (highest pitch -> lowest voice_id) works correctly
-                    target_threads = sorted(list(selected), key=lambda t: t.voice_id)
-                else:
-                    target_threads = available_threads
+                    # 2. Assign lowest note to Voice 4 IF Voice 4 is available and it's a true bass note
+                    if avail_copy and len(chord) > 1:
+                        if avail_copy[-1].voice_id == self.max_voices - 1:
+                            if chord[-1].pitch < 60: # middle C threshold
+                                chord_assignment[-1] = avail_copy.pop(-1)
+                                
+                    # 3. Fill remaining notes top-down into remaining threads
+                    for ci in range(1, len(chord)):
+                        if chord_assignment[ci] is None and avail_copy:
+                            chord_assignment[ci] = avail_copy.pop(0)
 
                 for ci, p in enumerate(chord):
                     is_structural = self._is_phase1_anchor(p, regime_frames)
 
-                    if ci < len(target_threads):
-                        # Rank assignment: highest pitch → lowest voice_id
-                        best_thread = target_threads[ci]
-                    else:
+                    best_thread = chord_assignment[ci]
+                    if not best_thread:
                         # More notes than available threads: use cost auction on ALL threads
                         best_thread = None
                         lowest_cost = float('inf')
@@ -208,6 +196,7 @@ class VoiceThreader:
                         best_thread.last_pitch = p.pitch
                         best_thread.last_end_time = p.onset + p.duration
                         p.voice_tag = f"Voice {best_thread.voice_id + 1}"
+                        p.voice_id = best_thread.voice_id
                     else:
                         p.voice_tag = "Overflow (Chord)"
 
