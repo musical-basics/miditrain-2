@@ -67,17 +67,22 @@ class VoiceThreader:
         # 1. COLLISION (Soft Pauli Exclusion)
         cost_collision = 0.0
         
-        # Strict infinite collision for notes struck at the exact same time (chords)
-        if p.onset - thread.last_onset <= 50:
-            return float('inf')
-
-        # Instead of throwing 'inf' for pedal overlaps, allow them but penalize them softly.
-        overlap_ms = thread.last_end_time - p.onset
-        if overlap_ms > self.LEGATO_GRACE_MS:
-            cost_collision = (overlap_ms / 1000.0) * self.W_COLLISION
-            # Protect structural anchors from being easily truncated by passing arpeggios
-            if thread.last_is_structural:
-                cost_collision *= 2.0
+        # Nullify collision for completely identical simultaneous onsets (Block Chords ringing polyphonically on the same track)
+        if p.onset == thread.last_onset:
+            # We apply a 35.0 Pauli Exclusion penalty to discourage a single string from arbitrarily swallowing a full chord.
+            # This precisely overcomes the 40.0 'empty wire' inertia, guaranteeing empty adjacent strings wake up to capture harmony notes.
+            # However, it remains vastly cheaper than the ~150+ collision cost of overlapping a non-simultaneous sustained string, 
+            # allowing overflowing 5-note chords to naturally stack inside their closest active register.
+            cost_collision = 45.0
+        else:
+            # Instead of throwing 'inf' for pedal overlaps, allow them but penalize them heavily.
+            overlap_ms = thread.last_end_time - p.onset
+            if overlap_ms > self.LEGATO_GRACE_MS:
+                # Multiply by 10 to ensure collision behaves as a semi-hard wall (e.g. 500ms = 150 penalty)
+                cost_collision = (overlap_ms / 1000.0) * self.W_COLLISION * 10.0
+                # Protect structural anchors from being easily truncated by passing arpeggios
+                if thread.last_is_structural:
+                    cost_collision *= 2.0
 
         # 2. ELASTICITY (Pitch Leaps)
         delta_p = abs(p.pitch - thread.last_pitch)
@@ -147,8 +152,7 @@ class VoiceThreader:
                 chord.append(sorted_particles[i])
                 i += 1
 
-            # Assign notes greedily (highest to lowest). A thread can only be bought once per chord.
-            used_threads = set()
+            # Assign notes greedily (highest to lowest).
             for p in chord:
                 is_structural = self._is_phase1_anchor(p, regime_frames)
                 
@@ -185,9 +189,6 @@ class VoiceThreader:
 
                 # Cost auction across all available threads
                 for thread in threads:
-                    if thread in used_threads:
-                        continue
-
                     cost = self._calculate_connection_cost(p, thread, is_structural, is_top=is_top, is_bottom=is_bottom, is_inner=is_inner)
                     if p.onset == 4000 and p.pitch == 49:
                         print(f"DEBUG FINAL 49->V{thread.voice_id+1}: {cost}")
@@ -202,13 +203,12 @@ class VoiceThreader:
                     best_thread.particles.append(p)
                     best_thread.last_pitch = p.pitch
                     best_thread.last_onset = p.onset
-                    # Overlapping notes are now perfectly fine, we just update the end time!
-                    best_thread.last_end_time = max(best_thread.last_end_time, p.onset + p.duration)
+                    # If this is a simultaneous block chord on the same thread, stretch the sustain envelope logically
+                    best_thread.last_end_time = max(best_thread.last_end_time, p.onset + p.duration) if best_thread.last_end_time != -9999 else p.onset + p.duration
                     best_thread.last_is_structural = is_structural
                     
                     p.voice_tag = f"Voice {best_thread.voice_id + 1}"
                     p.voice_id = best_thread.voice_id
-                    used_threads.add(best_thread)
                 else:
                     p.voice_tag = "Overflow (Chord)"
                     p.voice_id = -1
