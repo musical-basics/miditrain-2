@@ -9,6 +9,13 @@ const MAX_CANVAS_PX = 16000;
 const RULER_HEIGHT = 24;
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const BLACK_KEYS = [1,3,6,8,10];
+const NOTE_NAMES_FLAT = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+
+function midiNoteName(pitch) {
+  const name = NOTE_NAMES_FLAT[pitch % 12];
+  const octave = Math.floor(pitch / 12) - 1;
+  return `${name}${octave}`;
+}
 
 // Format ms to "M:SS.s" timestamp
 function formatTime(ms) {
@@ -265,15 +272,24 @@ export default function ETMEVisualizer() {
       ctx.shadowColor = 'transparent';
       ctx.shadowBlur = 0;
 
-      // Debug labels on Phase 1 — show per-note mass contribution
+      // Debug labels on Phase 1 — show per-note contribution with actual note names
       if (currentView === 'phase1' && n.debug && n.debug.particles) {
         ctx.font = '9px monospace';
         ctx.fillStyle = 'rgba(255,255,255,0.75)';
-        // Show each particle's interval + mass
         const parts = n.debug.particles;
-        const label = parts.map(p => `${p.int || p.interval}(o${p.o || p.octave || '?'}):${(p.m ?? p.mass)?.toFixed(2)}`).join(' ');
+        // Show note name + interval + mass
+        const noteName = midiNoteName(n.pitch);
+        const label = parts.map(p => {
+          const oct = p.o || p.octave || '?';
+          const iv = p.int || p.interval;
+          return `${iv}:${(p.m ?? p.mass)?.toFixed(2)}`;
+        }).join(' ');
         const diffLabel = `Δ${n.debug.diff}° pm=${n.debug.pmass?.toFixed(2)} rm=${n.debug.rmass?.toFixed(2)} th=${n.debug.threshold?.toFixed(2)}`;
-        ctx.fillText(label, x + 2, y - 2);
+        // Note name in cyan, then interval data
+        ctx.fillStyle = 'rgba(100,220,255,0.9)';
+        ctx.fillText(noteName, x + 2, y - 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillText(label, x + 2 + ctx.measureText(noteName + ' ').width, y - 2);
         ctx.fillStyle = 'rgba(255,200,100,0.6)';
         ctx.fillText(diffLabel, x + 2, y - 10);
       }
