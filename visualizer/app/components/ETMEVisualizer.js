@@ -136,7 +136,7 @@ export default function ETMEVisualizer() {
       const y = (PITCH_MAX - p) * noteHeight;
       const pc = p % 12;
       const isBlack = BLACK_KEYS.includes(pc);
-      ctx.fillStyle = isBlack ? 'rgba(255,255,255,0.015)' : 'transparent';
+      ctx.fillStyle = isBlack ? 'transparent' : 'rgba(255,255,255,0.015)';
       ctx.fillRect(0, y, canvasW, noteHeight);
       ctx.strokeStyle = 'rgba(255,255,255,0.04)';
       ctx.lineWidth = 0.5;
