@@ -36,13 +36,24 @@ class VoiceThreader:
 
         self.LEGATO_GRACE_MS = 40     # Allow 40ms of overlap for human legato
 
-    def _calculate_connection_cost(self, p, thread, is_structural):
+    def _calculate_connection_cost(self, p, thread, is_structural, is_top=False, is_bottom=False):
         """Calculates the energy (ΔE) required to append particle 'p' to 'thread'."""
 
         # Base case: Empty thread initialization
         if thread.last_pitch is None:
             # Register gravity acts heavily on initialization
             base_cost = (abs(p.pitch - thread.ideal_pitch) * self.W_REGISTER) + self.W_SPAWN_PENALTY
+            
+            # Forgive outer bounding notes for stretching to reach outer wires
+            if is_top and thread.voice_id == 0:
+                base_cost -= (abs(p.pitch - thread.ideal_pitch) * self.W_REGISTER)
+            elif is_top and thread.voice_id != 0:
+                base_cost += 20.0  # Top bounds forcibly repel from inner wires
+                
+            if is_bottom and thread.voice_id == self.max_voices - 1:
+                base_cost -= (abs(p.pitch - thread.ideal_pitch) * self.W_REGISTER)
+            elif is_bottom and thread.voice_id != self.max_voices - 1:
+                base_cost += 20.0  # Bottom bounds forcibly repel from inner wires
 
             # Structural notes get a massive discount for waking up outer bounding wires
             if is_structural:
@@ -86,6 +97,17 @@ class VoiceThreader:
         # 5. REGISTER GRAVITY (Restoring Force)
         # Prevents Voice 4 from climbing an arpeggio and staying in Voice 2's territory.
         cost_register = abs(p.pitch - thread.ideal_pitch) * self.W_REGISTER
+        
+        # Top bounds actively forgive the Soprano for playing high, but penalize inner voices
+        if is_top and thread.voice_id == 0:
+            cost_register = 0.0
+        elif is_top and thread.voice_id != 0:
+            cost_register += 20.0
+            
+        if is_bottom and thread.voice_id == self.max_voices - 1:
+            cost_register = 0.0
+        elif is_bottom and thread.voice_id != self.max_voices - 1:
+            cost_register += 20.0
 
         # 6. MACRO-GRAVITY
         cost_gravity = 0.0
@@ -129,6 +151,17 @@ class VoiceThreader:
             used_threads = set()
             for p in chord:
                 is_structural = self._is_phase1_anchor(p, regime_frames)
+                
+                is_top = False
+                is_bottom = False
+                if len(chord) > 1:
+                    if p is chord[0]:
+                        is_top = True
+                    elif p is chord[-1]:
+                        # Dynamically check if the bass note falls within ~1.5 octaves of true baseline
+                        if p.pitch <= threads[-1].ideal_pitch + 18:
+                            is_bottom = True
+                        
                 best_thread = None
                 lowest_cost = float('inf')
 
@@ -137,7 +170,7 @@ class VoiceThreader:
                     if thread in used_threads:
                         continue
 
-                    cost = self._calculate_connection_cost(p, thread, is_structural)
+                    cost = self._calculate_connection_cost(p, thread, is_structural, is_top=is_top, is_bottom=is_bottom)
                     if cost < lowest_cost:
                         lowest_cost = cost
                         best_thread = thread
