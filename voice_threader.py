@@ -6,6 +6,7 @@ Uses Phase 1's Harmonic Regime data (Transition Spikes) as Macro-Gravity
 to anchor structural notes into outer bounding voices.
 """
 import math
+import itertools
 
 
 class VoiceThread:
@@ -142,7 +143,10 @@ class VoiceThreader:
                 # Find which threads are available (not colliding)
                 available_threads = []
                 for thread in threads:
-                    if thread.last_pitch is None or chord[0].onset >= (thread.last_end_time - self.LEGATO_GRACE_MS):
+                    # CRITICAL: Use chord_start (the earliest onset in the cluster)
+                    # Because chords are rolled bottom-up, the highest pitch (chord[0]) is usually
+                    # played last, making its onset misleadingly late for Pauli Exclusion!
+                    if thread.last_pitch is None or chord_start >= (thread.last_end_time - self.LEGATO_GRACE_MS):
                         available_threads.append(thread)
 
                 # Outside-in assignment order: V1 → V4 → V2 → V3
@@ -160,9 +164,11 @@ class VoiceThreader:
                     chord_assignment[0] = avail_copy.pop(0)
                     
                     # 2. Assign lowest note to Voice 4 IF Voice 4 is available and it's a true bass note
+                    # We dynamically check if it falls within ~1.5 octaves (18 semitones) of the piece's
+                    # true lowest pitch (ideal_pitch of V4), gracefully adjusting to any key/range.
                     if avail_copy and len(chord) > 1:
                         if avail_copy[-1].voice_id == self.max_voices - 1:
-                            if chord[-1].pitch < 60: # middle C threshold
+                            if chord[-1].pitch <= avail_copy[-1].ideal_pitch + 18:
                                 chord_assignment[-1] = avail_copy.pop(-1)
                                 
                     # 3. Fill remaining notes top-down into remaining threads
