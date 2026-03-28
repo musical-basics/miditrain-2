@@ -97,32 +97,29 @@ class VoiceThreader:
         # 5. REGISTER GRAVITY (Restoring Force)
         # Prevents Voice 4 from climbing an arpeggio and staying in Voice 2's territory.
         cost_register = abs(p.pitch - thread.ideal_pitch) * self.W_REGISTER
-        
-        # Top bounds actively forgive the Soprano for playing high, but penalize inner voices
-        if is_top and thread.voice_id == 0:
-            cost_register = 0.0
-        elif is_top and thread.voice_id != 0:
-            cost_register += 20.0
+        # Top/Bottom structural bounds retain their elasticity, but non-structural inner voices invading the boundaries are severely punished
+        if is_top and thread.voice_id != 0:
+            if thread.last_pitch != p.pitch:
+                cost_register += 20.0
             
-        if is_bottom and thread.voice_id == self.max_voices - 1:
-            cost_register = 0.0
-        elif is_bottom and thread.voice_id != self.max_voices - 1:
-            cost_register += 20.0
+        if is_bottom and thread.voice_id != self.max_voices - 1:
+            if thread.last_pitch != p.pitch:
+                cost_register += 20.0
 
         # 6. MACRO-GRAVITY
         cost_gravity = 0.0
         # Only apply structural macro-gravity to outer topological boundaries.
-        # Inner harmony notes within a thick chord naturally belong in V2/V3 and should not be penalized for it.
         if is_structural and not is_inner:
             if thread.voice_id == 0 or thread.voice_id == self.max_voices - 1:
                 cost_gravity = self.W_GRAVITY
             else:
-                cost_gravity = abs(self.W_GRAVITY)
+                if thread.last_pitch != p.pitch:
+                    cost_gravity = abs(self.W_GRAVITY)
 
         # Heavily penalize inner voices attempting to natively snatch the Bass wire before the True Bass iterates
         if is_inner and thread.voice_id == self.max_voices - 1:
             cost_gravity += 30.0
-
+            
         return max(0.0, cost_collision + cost_elastic + cost_temp + cost_momentum + cost_register + cost_gravity)
 
     def thread_particles(self, sorted_particles, regime_frames):
