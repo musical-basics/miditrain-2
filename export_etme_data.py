@@ -177,9 +177,9 @@ def extract_keyframes(midi_path, group_window_ms=50):
     return keyframes
 
 
-def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='dissonance'):
+def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='dissonance', break_method='centroid'):
     print(f"Loading MIDI: {midi_path}")
-    print(f"  Angle map: {angle_map}")
+    print(f"  Angle map: {angle_map}, Break method: {break_method}")
     particles = midi_to_particles(midi_path)
     keyframes = extract_keyframes(midi_path)
     print(f"  Loaded {len(particles)} particles, {len(keyframes)} keyframes")
@@ -190,7 +190,10 @@ def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='diss
     # Phase 1: HarmonicRegimeDetector V2 (Limbo State Machine)
     # =============================================
     print("Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...")
-    detector = HarmonicRegimeDetector(break_angle=15.0, min_break_mass=0.75, merge_angle=25.0, angle_map=angle_map)
+    detector = HarmonicRegimeDetector(
+        break_angle=15.0, min_break_mass=0.75, merge_angle=25.0,
+        angle_map=angle_map, break_method=break_method
+    )
 
     # Process all frames at once (batch — enables retroactive re-tagging)
     regime_frames = detector.process(keyframes)
@@ -348,6 +351,11 @@ def export_analysis(midi_path, output_json="etme_analysis.json", angle_map='diss
 
 
 if __name__ == "__main__":
-    export_analysis("pathetique_2_test.mid", output_json="etme_analysis.json", angle_map='dissonance')
-    print("\n" + "="*50 + "\n")
-    export_analysis("pathetique_2_test.mid", output_json="etme_analysis_fifths.json", angle_map='fifths')
+    midi = "pathetique_test_chunk2.mid"
+    sep = "\n" + "="*50 + "\n"
+
+    export_analysis(midi, output_json="etme_analysis.json", break_method='centroid')
+    print(sep)
+    export_analysis(midi, output_json="etme_analysis_histogram.json", break_method='histogram')
+    print(sep)
+    export_analysis(midi, output_json="etme_analysis_hybrid.json", break_method='hybrid')

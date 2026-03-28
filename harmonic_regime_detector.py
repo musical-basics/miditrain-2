@@ -43,13 +43,17 @@ class HarmonicRegimeDetector:
         min_break_mass: Minimum accumulated mass in the pending group.
         merge_angle:    Maximum angular divergence for harmonically compatible merge.
         angle_map:      'dissonance' (default) or 'fifths' (standard circle of 5ths).
+        break_method:   'centroid' (angle only), 'histogram' (12-bin cosine),
+                        or 'hybrid' (centroid + Jaccard set overlap).
     """
 
-    def __init__(self, break_angle=40.0, min_break_mass=0.8, merge_angle=25.0, angle_map='dissonance'):
+    def __init__(self, break_angle=40.0, min_break_mass=0.8, merge_angle=25.0,
+                 angle_map='dissonance', break_method='centroid'):
         self.break_angle = break_angle
         self.min_break_mass = min_break_mass
         self.merge_angle = merge_angle
         self.interval_angles = ANGLE_MAPS.get(angle_map, INTERVAL_ANGLES_DISSONANCE)
+        self.break_method = break_method
 
     # ------------------------------------------------------------------
     # Vector math helpers
@@ -77,6 +81,59 @@ class HarmonicRegimeDetector:
         """Shortest angular distance on a 360° circle."""
         diff = abs(a1 - a2) % 360
         return 360 - diff if diff > 180 else diff
+
+    def _build_pc_histogram(self, particles):
+        """Build a 12-bin pitch-class histogram weighted by mass."""
+        hist = [0.0] * 12
+        for p in particles:
+            interval = p.get('interval', '1')
+            pc = SEMITONE_MAP.get(interval, 0)
+            hist[pc] += p['mass']
+        return hist
+
+    def _cosine_similarity(self, h1, h2):
+        """Cosine similarity between two histograms."""
+        dot = sum(a * b for a, b in zip(h1, h2))
+        mag1 = math.sqrt(sum(a**2 for a in h1))
+        mag2 = math.sqrt(sum(a**2 for a in h2))
+        if mag1 == 0 or mag2 == 0:
+            return 0.0
+        return dot / (mag1 * mag2)
+
+    def _jaccard_similarity(self, particles_a, particles_b):
+        """Jaccard similarity of pitch-class sets (ignoring mass)."""
+        set_a = {SEMITONE_MAP.get(p['interval'], 0) for p in particles_a}
+        set_b = {SEMITONE_MAP.get(p['interval'], 0) for p in particles_b}
+        if not set_a and not set_b:
+            return 1.0
+        intersection = len(set_a & set_b)
+        union = len(set_a | set_b)
+        return intersection / union if union > 0 else 0.0
+
+    def _should_break(self, anchor_particles, combined_pending, diff, pmass):
+        """Determine if a regime break should occur based on the chosen method."""
+        if pmass <= self.min_break_mass:
+            return False
+
+        if self.break_method == 'centroid':
+            return diff > self.break_angle
+
+        elif self.break_method == 'histogram':
+            h_anchor = self._build_pc_histogram(anchor_particles)
+            h_pending = self._build_pc_histogram(combined_pending)
+            cosine_sim = self._cosine_similarity(h_anchor, h_pending)
+            # Break if cosine similarity < 0.7 (very different pitch-class content)
+            return cosine_sim < 0.7
+
+        elif self.break_method == 'hybrid':
+            # Either centroid angle OR Jaccard set difference triggers a break
+            if diff > self.break_angle:
+                return True
+            jaccard = self._jaccard_similarity(anchor_particles, combined_pending)
+            # Break if fewer than 50% pitch classes overlap
+            return jaccard < 0.5
+
+        return diff > self.break_angle  # fallback
 
     # ------------------------------------------------------------------
     # Main processing — the Limbo state machine with Anchor Isolation
@@ -154,7 +211,7 @@ class HarmonicRegimeDetector:
             }
 
             # ─── CASE 1: REGIME BREAK ───────────────────────────
-            if diff > self.break_angle and pmass > self.min_break_mass:
+            if self._should_break(anchor_particles, combined_pending, diff, pmass):
                 # Flush all limbo notes into the OLD regime (time ordering)
                 for lf_time, lf_parts in limbo_frames:
                     regime_all_particles.extend(lf_parts)
