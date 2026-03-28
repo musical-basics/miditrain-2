@@ -1,0 +1,398 @@
+"""
+Phase 3A: Macro-Meter Estimator
+================================================================================
+Infers Tempo, Time Signature, and Barlines from Phase 1 Spikes and Phase 2 Voice 4.
+
+Key Design Principles:
+- Hierarchical IOI Clustering: detects sub-tactus (16ths) vs. tactus (beats) by
+  finding integer-ratio IOI clusters, not just a single mode.
+- Spike-Anchored Rubber-Band Grid: barlines elastically snap to real TRANSITION
+  SPIKE frames when nearby, then dead-reckon forward otherwise.
+- Musical Norm Clamping: ratio is snapped to {2, 3, 4, 6, 8, 12}.
+
+Usage:
+    python phase3_meter.py                          # auto-detects chunk3 fifths hybrid
+    python phase3_meter.py path/to/etme_*.json      # explicit file
+    python phase3_meter.py --all                    # runs all 3 chunks
+    python phase3_meter.py --json                   # write phase3_grid.json
+"""
+
+import json
+import sys
+import math
+import glob
+from collections import Counter
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+MUSICAL_NORM_DIVISORS = [2, 3, 4, 6, 8, 12]
+
+
+def _bin_iois(iois, bin_size):
+    """Bucket a list of IOIs into rounded multiples of bin_size."""
+    return [round(x / bin_size) * bin_size for x in iois]
+
+
+def _extract_clusters(times, bin_size=25, min_val=50, max_val=4000):
+    """
+    Returns a sorted list of (interval_ms, count) pairs from inter-onset intervals.
+    Filters to [min_val, max_val] before binning.
+    """
+    if len(times) < 2:
+        return []
+    iois = [times[i] - times[i - 1] for i in range(1, len(times))]
+    valid = [x for x in iois if min_val <= x <= max_val]
+    if not valid:
+        return []
+    binned = _bin_iois(valid, bin_size)
+    counter = Counter(binned)
+    # Return sorted by count descending
+    return sorted(counter.items(), key=lambda kv: -kv[1])
+
+
+def _nearest_norm(ratio, norms=MUSICAL_NORM_DIVISORS):
+    """Snap a floating ratio to the nearest musical integer norm."""
+    if ratio < 1.5:
+        return 2
+    return min(norms, key=lambda n: abs(n - ratio))
+
+
+def _meter_type(beats_per_measure):
+    """Label the meter for human readability."""
+    if beats_per_measure in (2,):
+        return "simple_duple"
+    if beats_per_measure in (3,):
+        return "simple_triple"
+    if beats_per_measure in (4,):
+        return "simple_quadruple"
+    if beats_per_measure in (6,):
+        return "compound_duple"
+    if beats_per_measure in (9,):
+        return "compound_triple"
+    if beats_per_measure in (12,):
+        return "compound_quadruple"
+    return "complex"
+
+
+# ---------------------------------------------------------------------------
+# MacroMeterEstimator
+# ---------------------------------------------------------------------------
+
+class MacroMeterEstimator:
+    """
+    Phase 3A: Macro-Meter Bootstrapper.
+
+    Infers Tempo, Time Signature, and Barlines using:
+      - Phase 1  → TRANSITION SPIKE start_times (harmonic rhythm anchor)
+      - Phase 2  → Voice 4 (Bass) note onsets    (Tactus / sub-tactus)
+    """
+
+    def __init__(self, json_path):
+        with open(json_path, "r") as f:
+            self.data = json.load(f)
+        self.json_path = json_path
+        self.notes = self.data["notes"]
+        self.regimes = self.data["regimes"]
+
+    # ------------------------------------------------------------------
+    # Step 1: Tactus Estimation (Hierarchical IOI Clustering)
+    # ------------------------------------------------------------------
+
+    def _estimate_tactus(self, bass_onsets):
+        """
+        Find the fundamental beat from Voice 4 IOIs.
+
+        Strategy:
+          1. Extract all Bass IOI clusters.
+          2. The SMALLEST common cluster is the sub-tactus (e.g., 84ms = 16th note).
+          3. Look for a cluster at 2x, 3x, or 4x the sub-tactus — that is the tactus (beat).
+          4. If no integer multiple cluster exists, the sub-tactus IS the tactus.
+
+        Returns (sub_tactus_ms, tactus_ms, subdivision).
+        """
+        # Tight binning — use 10ms bins to accurately resolve sub-tactus
+        # e.g. 82ms bins to 80ms, 332ms bins to 330ms
+        clusters = _extract_clusters(bass_onsets, bin_size=10, min_val=50, max_val=2000)
+        if not clusters:
+            return None, None, 1
+
+        # Sub-tactus = most common short interval (the tightest pulse)
+        sub_tactus_ms = clusters[0][0]
+
+        # Search for the STRONGEST cluster at an integer multiple of sub_tactus.
+        # We evaluate all ratios and pick the one with the highest count.
+        candidate_ratios = [2, 3, 4]
+        best_tactus = sub_tactus_ms
+        best_subdivision = 1
+        best_count = 0
+
+        for ratio in candidate_ratios:
+            target = sub_tactus_ms * ratio
+            tolerance = sub_tactus_ms * 0.35  # ±35% of sub-tactus
+            for interval_ms, count in clusters:
+                if abs(interval_ms - target) <= tolerance:
+                    if count > best_count:
+                        best_count = count
+                        best_tactus = interval_ms  # use actual cluster center
+                        best_subdivision = ratio
+                    break
+
+        return sub_tactus_ms, best_tactus, best_subdivision
+
+    # ------------------------------------------------------------------
+    # Step 2: Measure Length Estimation (Spike Clustering)
+    # ------------------------------------------------------------------
+
+    def _estimate_measure_length(self, spike_times, tactus_ms):
+        """
+        Cluster time deltas between TRANSITION SPIKE events to find the harmonic rhythm.
+        Uses a looser bin (100ms) because spike timing has more rubato variance than bass pulses.
+        """
+        # Minimum measure must be at least 2× the tactus
+        min_measure = max(tactus_ms * 2, 300) if tactus_ms else 400
+        clusters = _extract_clusters(spike_times, bin_size=100, min_val=min_measure, max_val=8000)
+        if not clusters:
+            # Fallback: use 2× tactus as a guess
+            return tactus_ms * 2 if tactus_ms else 1000
+
+        return clusters[0][0]
+
+    # ------------------------------------------------------------------
+    # Step 3: Time Signature Derivation
+    # ------------------------------------------------------------------
+
+    def _derive_time_signature(self, sub_tactus_ms, tactus_ms, subdivision, measure_ms):
+        """
+        Divide measure_ms / tactus_ms and snap to the nearest musical norm.
+
+        If a subdivision >1 was detected (e.g., 4x → quarter from 16ths),
+        the promoted tactus IS the quarter note, so denominator = 4.
+        If subdivision == 1 (no promotion), fall back to BPM heuristic.
+
+        Returns (beats_per_measure, denominator).
+        """
+        raw_ratio = measure_ms / tactus_ms
+        beats = _nearest_norm(raw_ratio)
+
+        if subdivision > 1:
+            # The tactus was promoted from a sub-division.
+            # sub_tactus → 16th/8th, tactus → quarter/half
+            if subdivision == 4:
+                # 16ths promoted to quarters
+                denominator = 4
+            elif subdivision == 3:
+                # Triplet sub-division promoted
+                denominator = 4  # compound feel, still quarter reference
+            elif subdivision == 2:
+                # 8ths promoted to quarters
+                denominator = 4
+            else:
+                denominator = 4
+        else:
+            # No subdivision detected — use BPM heuristic
+            bpm = 60000 / tactus_ms
+            if bpm > 200:
+                denominator = 16
+            elif bpm > 140:
+                denominator = 8
+            elif bpm > 60:
+                denominator = 4
+            else:
+                denominator = 2
+
+        return beats, denominator
+
+    # ------------------------------------------------------------------
+    # Step 4: Project Rubber-Band Barlines
+    # ------------------------------------------------------------------
+
+    def _project_barlines(self, spike_times, measure_ms, tactus_ms, max_time):
+        """
+        Projects barlines elastically:
+        - Start from the first spike (or t=0).
+        - Advance by measure_ms each step.
+        - If a real spike falls within ±tactus_ms*0.5, snap to it (rubato-corrected).
+        - Otherwise, dead-reckon forward.
+
+        Returns list of dicts: {measure, time_ms, snapped, drift_ms, source}
+        """
+        snap_window = int(tactus_ms * 0.5) if tactus_ms else 200
+        start_time = spike_times[0] if spike_times else 0
+        barlines = []
+        current_time = start_time
+        measure = 1
+
+        while current_time <= max_time + measure_ms:
+            # Look for a nearby real spike
+            nearby = [s for s in spike_times if abs(s - current_time) <= snap_window]
+            if nearby:
+                actual = min(nearby, key=lambda s: abs(s - current_time))
+                drift = actual - current_time
+                barlines.append({
+                    "measure": measure,
+                    "time_ms": int(actual),
+                    "snapped": True,
+                    "drift_ms": int(drift),
+                    "source": "spike"
+                })
+                current_time = actual
+            else:
+                barlines.append({
+                    "measure": measure,
+                    "time_ms": int(current_time),
+                    "snapped": False,
+                    "drift_ms": 0,
+                    "source": "dead_reckoning"
+                })
+
+            current_time += measure_ms
+            measure += 1
+
+        return barlines
+
+    # ------------------------------------------------------------------
+    # Public: estimate()
+    # ------------------------------------------------------------------
+
+    def estimate(self, write_json=False):
+        """
+        Full pipeline. Returns a dict with all computed fields and prints a report.
+        """
+        sep = "=" * 55
+
+        print(f"\n{sep}")
+        print(f"  🎵  PHASE 3A: MACRO-METER ESTIMATOR")
+        print(f"  📄  {self.json_path.split('/')[-1]}")
+        print(f"{sep}")
+
+        # ── Voice 4 Bass onsets ──────────────────────────────────────────
+        bass_notes = sorted(
+            [n for n in self.notes if n["voice_tag"] == "Voice 4"],
+            key=lambda n: n["onset"],
+        )
+        bass_onsets = [n["onset"] for n in bass_notes]
+
+        if len(bass_onsets) < 3:
+            print("  ⚠️  Not enough Bass notes to establish a pulse.")
+            return None
+
+        sub_tactus_ms, tactus_ms, subdivision = self._estimate_tactus(bass_onsets)
+        if not tactus_ms:
+            print("  ⚠️  Tactus estimation failed.")
+            return None
+
+        # ── Phase 1 Spike times ─────────────────────────────────────────
+        spike_times = sorted(
+            [r["start_time"] for r in self.regimes if r["state"] == "TRANSITION SPIKE!"]
+        )
+        # Ensure piece start is included as a downbeat anchor
+        piece_start = self.regimes[0]["start_time"] if self.regimes else 0
+        if not spike_times or spike_times[0] > piece_start + tactus_ms:
+            spike_times.insert(0, piece_start)
+
+        measure_ms = self._estimate_measure_length(spike_times, tactus_ms)
+        beats_per_measure, denominator = self._derive_time_signature(sub_tactus_ms, tactus_ms, subdivision, measure_ms)
+
+        bpm_sub = round(60000 / sub_tactus_ms)
+        bpm_tactus = round(60000 / tactus_ms)
+        meter_label = _meter_type(beats_per_measure)
+
+        # ── Max time ────────────────────────────────────────────────────
+        max_time = max(n["onset"] + n["duration"] for n in self.notes) if self.notes else 0
+
+        barlines = self._project_barlines(spike_times, measure_ms, tactus_ms, max_time)
+
+        # ── Report ──────────────────────────────────────────────────────
+        print(f"\n  📊  PULSE ANALYSIS")
+        print(f"  {'─'*50}")
+        print(f"  Sub-tactus (raw IOI mode):  ~{sub_tactus_ms} ms  ({bpm_sub} BPM)")
+        if subdivision > 1:
+            print(f"  Subdivision detected:       {subdivision}× → tactus = {tactus_ms} ms  ({bpm_tactus} BPM)")
+        else:
+            print(f"  Tactus (= sub-tactus):      {tactus_ms} ms  ({bpm_tactus} BPM)")
+        print(f"  Harmonic rhythm (Spikes):   ~{int(measure_ms)} ms  ({len(spike_times)} spikes detected)")
+        print(f"  Ratio (measure/tactus):     {measure_ms/tactus_ms:.2f}  →  {beats_per_measure} beats/measure")
+
+        print(f"\n  🎯  ESTIMATED METER")
+        print(f"  {'─'*50}")
+        print(f"  Time Signature:  {beats_per_measure}/{denominator}  ({meter_label})")
+        print(f"  Tempo (tactus):  {bpm_tactus} BPM  (relative to ♩ = {denominator}th note)")
+        print(f"  Tempo (♩ note):  ~{round(60000 / (tactus_ms * max(1, 4 // denominator)))} BPM  (quarter-note reference)")
+
+        print(f"\n  📏  BARLINE GRID  ({len(barlines)} measures projected)")
+        print(f"  {'─'*50}")
+        snapped = sum(1 for b in barlines if b["snapped"])
+        print(f"  Snapped to spikes:  {snapped}/{len(barlines)}  ({round(100*snapped/max(1,len(barlines)))}%)")
+        print()
+        for b in barlines:
+            snap_str = f"← SPIKE  drift:{b['drift_ms']:+d}ms" if b["snapped"] else "↔ dead-reckoned"
+            print(f"    Measure {b['measure']:02d}:  {b['time_ms']:6d} ms    {snap_str}")
+
+        print(f"\n{sep}\n")
+
+        # ── Build result dict ────────────────────────────────────────────
+        result = {
+            "source_file": self.json_path,
+            "sub_tactus_ms": sub_tactus_ms,
+            "tactus_ms": tactus_ms,
+            "subdivision": subdivision,
+            "bpm_tactus": bpm_tactus,
+            "measure_ms": int(measure_ms),
+            "beats_per_measure": beats_per_measure,
+            "denominator": denominator,
+            "time_signature": f"{beats_per_measure}/{denominator}",
+            "meter_type": meter_label,
+            "spike_count": len(spike_times),
+            "barlines": barlines,
+        }
+
+        if write_json:
+            out_path = "phase3_grid.json"
+            with open(out_path, "w") as f:
+                json.dump(result, f, indent=2)
+            print(f"  ✅  Grid written to: {out_path}")
+
+        return result
+
+
+# ---------------------------------------------------------------------------
+# CLI Entry Point
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
+    write_json = "--json" in args
+    run_all = "--all" in args
+    args = [a for a in args if not a.startswith("--")]
+
+    if run_all:
+        # Run all 3 chunks with the canonical fifths + hybrid_0.5 configuration
+        targets = [
+            "visualizer/public/etme_chunk1_fifths_hybrid_0.5.json",
+            "visualizer/public/etme_chunk2_fifths_hybrid_0.5.json",
+            "visualizer/public/etme_chunk3_fifths_hybrid_0.5.json",
+        ]
+    elif args:
+        targets = args
+    else:
+        # Auto-detect: prefer chunk3 fifths hybrid
+        candidates = glob.glob("visualizer/public/etme_chunk3_fifths_hybrid_0.5.json")
+        if not candidates:
+            candidates = glob.glob("visualizer/public/etme_chunk3_*.json")
+        targets = candidates[:1] if candidates else []
+
+    if not targets:
+        print("❌ No JSON files found. Pass a path or use --all.")
+        sys.exit(1)
+
+    for path in targets:
+        try:
+            estimator = MacroMeterEstimator(path)
+            estimator.estimate(write_json=write_json)
+        except FileNotFoundError:
+            print(f"  ❌  File not found: {path}")
+        except KeyError as e:
+            print(f"  ❌  Unexpected JSON schema (missing key {e}): {path}")

@@ -171,11 +171,9 @@ class VoiceThreader:
             pitch_min = min(p.pitch for p in sorted_particles)
             pitch_max = max(p.pitch for p in sorted_particles)
             pitch_range = max(pitch_max - pitch_min, 12)  # At least one octave
-            print(f"CHUNK LIMITS: MIN={pitch_min} MAX={pitch_max} RANGE={pitch_range}")
             for t in threads:
                 # V0 targets top of range, V(N-1) targets bottom
                 t.ideal_pitch = pitch_max - (t.voice_id * (pitch_range / max(1, self.max_voices - 1)))
-                print(f"V{t.voice_id} IDEAL: {t.ideal_pitch}")
 
         i = 0
         while i < len(sorted_particles):
@@ -224,8 +222,6 @@ class VoiceThreader:
                 # Cost auction across all available threads
                 for thread in threads:
                     cost = self._calculate_connection_cost(p, thread, threads, is_structural, is_top=is_top, is_bottom=is_bottom, is_inner=is_inner)
-                    if p.onset == 2250 and p.pitch == 58:
-                        print(f"DEBUG {p.onset}-{p.pitch}->V{thread.voice_id}: cost={cost} last_p={thread.last_pitch} last_end={thread.last_end_time}")
                     if cost < lowest_cost:
                         lowest_cost = cost
                         best_thread = thread
