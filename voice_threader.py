@@ -159,10 +159,24 @@ class VoiceThreader:
                 is_inner = False
                 if len(chord) > 1:
                     if p is chord[0]:
-                        is_top = True
+                        # It is the top struck note. But is it the top resonating note globally?
+                        # Check actively sustaining wires.
+                        physically_top = True
+                        for t in threads:
+                            if t.last_pitch is not None and t.last_end_time > p.onset:
+                                if t.last_pitch > p.pitch:
+                                    physically_top = False
+                        if physically_top:
+                            is_top = True
+                            
                     elif p is chord[-1]:
-                        # Dynamically check if the bass note falls within ~1.5 octaves of true baseline
-                        if p.pitch <= threads[-1].ideal_pitch + 18:
+                        physically_bottom = True
+                        for t in threads:
+                            if t.last_pitch is not None and t.last_end_time > p.onset:
+                                if t.last_pitch < p.pitch:
+                                    physically_bottom = False
+                        
+                        if physically_bottom and p.pitch <= threads[-1].ideal_pitch + 18:
                             is_bottom = True
                             
                     if not is_top and not is_bottom:
