@@ -44,8 +44,12 @@ class VoiceThreader:
             base_cost = (abs(p.pitch - thread.ideal_pitch) * 0.5) + self.W_SPAWN_PENALTY
 
             # Structural notes get a massive discount for waking up outer bounding wires
-            if is_structural and (thread.voice_id == 0 or thread.voice_id == self.max_voices - 1):
-                base_cost += self.W_GRAVITY
+            if is_structural:
+                if thread.voice_id == 0 or thread.voice_id == self.max_voices - 1:
+                    base_cost += self.W_GRAVITY
+                else:
+                    # Penalty for putting heavy structural chords in inner filler voices
+                    base_cost += abs(self.W_GRAVITY)
             return max(0.0, base_cost)
 
         # 1. THE PAULI EXCLUSION PRINCIPLE (Collision)
@@ -147,18 +151,25 @@ class VoiceThreader:
                 available_threads.sort(key=lambda t: t.voice_id)
 
                 # We need to pick exactly N threads for N notes.
-                # Prioritize the outer-most bounding voices available,
-                # then fill in inner voices.
                 num_notes = len(chord)
                 if len(available_threads) > num_notes:
                     selected = set()
-                    # 1. Take highest available voice (Soprano-ish)
-                    if num_notes > 0:
-                        selected.add(available_threads[0])
-                    # 2. Take lowest available voice (Bass-ish)
-                    if num_notes > 1:
-                        selected.add(available_threads[-1])
-                    # 3. Fill the rest top-down
+                    
+                    # Find true structural outer voices in the available pool
+                    v1 = next((t for t in available_threads if t.voice_id == 0), None)
+                    v4 = next((t for t in available_threads if t.voice_id == self.max_voices - 1), None)
+
+                    # 1. Take true Voice 1 (Soprano) if available
+                    if num_notes > 0 and v1:
+                        selected.add(v1)
+                    
+                    # 2. Take true Voice 4 (Bass) if available
+                    if num_notes > 1 and v4:
+                        selected.add(v4)
+                        
+                    # 3. Fill the rest of the required threads strictly top-down (V2, V3...)
+                    # This guarantees we don't artificially force a Tenor to play an Alto line
+                    # just because the Bass was busy.
                     for t in available_threads:
                         if len(selected) == num_notes:
                             break
