@@ -1,0 +1,148 @@
+{
+  "source_file": "visualizer/public/etme_chunk3_fifths_hybrid_0.5.json",
+  "sub_tactus_ms": 80,
+  "tactus_ms": 330,
+  "subdivision": 4,
+  "bpm_tactus": 182,
+  "measure_ms": 800,
+  "beats_per_measure": 2,
+  "denominator": 4,
+  "time_signature": "2/4",
+  "meter_type": "simple_duple",
+  "spike_count": 25,
+  "barlines": [
+    {
+      "measure": 1,
+      "time_ms": 0,
+      "snapped": true,
+      "drift_ms": 0,
+      "source": "spike"
+    },
+    {
+      "measure": 2,
+      "time_ms": 666,
+      "snapped": true,
+      "drift_ms": -134,
+      "source": "spike"
+    },
+    {
+      "measure": 3,
+      "time_ms": 1500,
+      "snapped": true,
+      "drift_ms": 34,
+      "source": "spike"
+    },
+    {
+      "measure": 4,
+      "time_ms": 2250,
+      "snapped": true,
+      "drift_ms": -50,
+      "source": "spike"
+    },
+    {
+      "measure": 5,
+      "time_ms": 3000,
+      "snapped": true,
+      "drift_ms": -50,
+      "source": "spike"
+    },
+    {
+      "measure": 6,
+      "time_ms": 3800,
+      "snapped": false,
+      "drift_ms": 0,
+      "source": "dead_reckoning"
+    },
+    {
+      "measure": 7,
+      "time_ms": 4500,
+      "snapped": true,
+      "drift_ms": -100,
+      "source": "spike"
+    },
+    {
+      "measure": 8,
+      "time_ms": 5300,
+      "snapped": false,
+      "drift_ms": 0,
+      "source": "dead_reckoning"
+    },
+    {
+      "measure": 9,
+      "time_ms": 6000,
+      "snapped": true,
+      "drift_ms": -100,
+      "source": "spike"
+    },
+    {
+      "measure": 10,
+      "time_ms": 6800,
+      "snapped": false,
+      "drift_ms": 0,
+      "source": "dead_reckoning"
+    },
+    {
+      "measure": 11,
+      "time_ms": 7500,
+      "snapped": true,
+      "drift_ms": -100,
+      "source": "spike"
+    },
+    {
+      "measure": 12,
+      "time_ms": 8300,
+      "snapped": false,
+      "drift_ms": 0,
+      "source": "dead_reckoning"
+    },
+    {
+      "measure": 13,
+      "time_ms": 9000,
+      "snapped": true,
+      "drift_ms": -100,
+      "source": "spike"
+    },
+    {
+      "measure": 14,
+      "time_ms": 9750,
+      "snapped": true,
+      "drift_ms": -50,
+      "source": "spike"
+    },
+    {
+      "measure": 15,
+      "time_ms": 10550,
+      "snapped": false,
+      "drift_ms": 0,
+      "source": "dead_reckoning"
+    },
+    {
+      "measure": 16,
+      "time_ms": 11350,
+      "snapped": false,
+      "drift_ms": 0,
+      "source": "dead_reckoning"
+    },
+    {
+      "measure": 17,
+      "time_ms": 12000,
+      "snapped": true,
+      "drift_ms": -150,
+      "source": "spike"
+    },
+    {
+      "measure": 18,
+      "time_ms": 12750,
+      "snapped": true,
+      "drift_ms": -50,
+      "source": "spike"
+    },
+    {
+      "measure": 19,
+      "time_ms": 13550,
+      "snapped": false,
+      "drift_ms": 0,
+      "source": "dead_reckoning"
+    }
+  ]
+}

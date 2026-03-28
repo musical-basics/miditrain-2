@@ -69,6 +69,7 @@ export default function ETMEVisualizer() {
   const keyboardRef = useRef(null);
 
   const [data, setData] = useState(null);
+  const [gridData, setGridData] = useState(null);
   const [currentView, setCurrentView] = useState('raw');
   const [midiFile, setMidiFile] = useState('chunk2');
   const [angleMap, setAngleMap] = useState('dissonance');
@@ -90,6 +91,15 @@ export default function ETMEVisualizer() {
       .then(setData)
       .catch(err => console.error('Failed to load data:', err));
   }, [midiFile, angleMap, breakModel, jaccardThreshold]);
+
+  // Load Phase 3A grid whenever the chunk changes
+  useEffect(() => {
+    const gridFile = `phase3_grid_${midiFile}.json`;
+    fetch(`/${gridFile}?t=${Date.now()}`)
+      .then(r => r.json())
+      .then(setGridData)
+      .catch(() => setGridData(null));
+  }, [midiFile]);
 
   // Sync scroll between keyboard and canvas
   useEffect(() => {
@@ -269,11 +279,12 @@ export default function ETMEVisualizer() {
           fillColor = `hsla(${h}, ${s}%, ${l}%, 0.8)`;
           strokeColor = `hsla(${h}, ${s}%, ${Math.min(l + 10, 80)}%, 0.9)`;
         }
-      } else if (currentView === 'phase2') {
+      } else if (currentView === 'phase2' || currentView === 'phase3a') {
         const vc = VOICE_COLORS[n.voice_tag] || VOICE_COLORS['Overflow (Chord)'];
-        fillColor = hsl(vc.h, vc.s, vc.l, 0.85);
-        strokeColor = hsl(vc.h, vc.s, Math.min(vc.l + 15, 80), 1);
-        if (n.voice_tag === 'Voice 1' || n.voice_tag === 'Voice 4') {
+        const alpha = currentView === 'phase3a' ? 0.5 : 0.85;
+        fillColor = hsl(vc.h, vc.s, vc.l, alpha);
+        strokeColor = hsl(vc.h, vc.s, Math.min(vc.l + 15, 80), alpha + 0.1);
+        if (currentView === 'phase2' && (n.voice_tag === 'Voice 1' || n.voice_tag === 'Voice 4')) {
           ctx.shadowColor = hsl(vc.h, 90, 50, 0.4);
           ctx.shadowBlur = 5;
         } else {
@@ -281,6 +292,7 @@ export default function ETMEVisualizer() {
           ctx.shadowBlur = 0;
         }
       }
+
 
       ctx.fillStyle = fillColor;
       ctx.beginPath();
@@ -314,7 +326,86 @@ export default function ETMEVisualizer() {
         ctx.fillText(diffLabel, x + 2, y - 10);
       }
     }
-  }, [data, currentView, msPxInput, noteHeight]);
+      // Phase 3A: Barline Grid overlay (drawn on top of all other views)
+    if (currentView === 'phase3a' && gridData) {
+      const barlines = gridData.barlines || [];
+      const timeSig = gridData.time_signature || '?/?';
+      const bpm = gridData.bpm_tactus || '?';
+      const tactusMs = gridData.tactus_ms || 500;
+      const subdivision = gridData.subdivision || 1;
+      const subTactusMs = gridData.sub_tactus_ms || tactusMs;
+
+      // Draw beat tick lines (tactus pulses) between barlines
+      const measureMs = gridData.measure_ms || 1000;
+      const beatsPerMeasure = gridData.beats_per_measure || 2;
+      const beatMs = measureMs / beatsPerMeasure;
+
+      for (let t = 0; t < maxTime; t += beatMs) {
+        const x = t * effectiveScale;
+        const isMeasureBound = barlines.some(b => Math.abs(b.time_ms - t) < beatMs * 0.2);
+        if (!isMeasureBound) {
+          ctx.strokeStyle = 'rgba(255, 210, 60, 0.15)';
+          ctx.lineWidth = 0.75;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath(); ctx.moveTo(x, RULER_HEIGHT); ctx.lineTo(x, rollH); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      // Draw sub-tactus tick marks in ruler if subdivision > 1
+      if (subdivision > 1) {
+        for (let t = 0; t < maxTime; t += subTactusMs) {
+          const x = t * effectiveScale;
+          ctx.strokeStyle = 'rgba(255,210,60,0.06)';
+          ctx.lineWidth = 0.5;
+          ctx.beginPath(); ctx.moveTo(x, rollH + RULER_HEIGHT * 0.55); ctx.lineTo(x, rollH); ctx.stroke();
+        }
+      }
+
+      // Draw barlines
+      for (const b of barlines) {
+        const x = b.time_ms * effectiveScale;
+        const isSnapped = b.snapped;
+
+        // Main barline
+        ctx.strokeStyle = isSnapped
+          ? 'rgba(255, 210, 60, 0.75)'
+          : 'rgba(255, 210, 60, 0.35)';
+        ctx.lineWidth = isSnapped ? 1.5 : 1;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, rollH); ctx.stroke();
+
+        // Ruler tick
+        ctx.strokeStyle = isSnapped ? 'rgba(255,210,60,0.9)' : 'rgba(255,210,60,0.4)';
+        ctx.lineWidth = isSnapped ? 2 : 1;
+        ctx.beginPath(); ctx.moveTo(x, rollH); ctx.lineTo(x, rollH + 10); ctx.stroke();
+
+        // Measure number label
+        ctx.font = `bold ${isSnapped ? 10 : 9}px Inter`;
+        ctx.fillStyle = isSnapped ? 'rgba(255, 220, 80, 0.95)' : 'rgba(255, 210, 60, 0.5)';
+        ctx.textAlign = 'center';
+        ctx.fillText(`m${b.measure}`, x, rollH + 21);
+        ctx.textAlign = 'start';
+
+        // Drift annotation
+        if (isSnapped && b.drift_ms !== 0) {
+          ctx.font = '7px Inter';
+          ctx.fillStyle = 'rgba(255,180,60,0.6)';
+          ctx.textAlign = 'center';
+          ctx.fillText(`${b.drift_ms > 0 ? '+' : ''}${b.drift_ms}ms`, x, rollH - 4);
+          ctx.textAlign = 'start';
+        }
+
+        // Spike indicator dot at top
+        if (isSnapped) {
+          ctx.fillStyle = 'rgba(255, 220, 80, 0.8)';
+          ctx.beginPath();
+          ctx.arc(x, 8, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    }, [data, gridData, currentView, msPxInput, noteHeight]);
+
 
   useEffect(() => { render(); }, [render]);
 
@@ -382,6 +473,40 @@ export default function ETMEVisualizer() {
         <div className="legend-item"><div className="legend-swatch" style={{ background: 'rgba(80,80,100,0.4)' }} />Silence / Void</div>
       </>
     );
+    if (currentView === 'phase3a') return (
+      <>
+        <h3>Phase 3A — Macro-Meter</h3>
+        {gridData ? (
+          <>
+            <div className="legend-item">
+              <div className="legend-swatch" style={{ background: 'rgba(255,210,60,0.8)', boxShadow: '0 0 4px rgba(255,210,60,0.4)' }} />
+              Barline (Spike-Snapped)
+            </div>
+            <div className="legend-item">
+              <div className="legend-swatch" style={{ background: 'rgba(255,210,60,0.3)', border: '1px solid rgba(255,210,60,0.5)' }} />
+              Barline (Dead-Reckoned)
+            </div>
+            <div className="legend-item" style={{ marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8 }}>
+              <span style={{ color: '#ffd640', fontWeight: 600 }}>{gridData.time_signature}</span>
+              &nbsp;Time Signature
+            </div>
+            <div className="legend-item">
+              <span style={{ color: '#ffd640', fontWeight: 600 }}>{gridData.bpm_tactus} BPM</span>
+              &nbsp;Tactus (♩)
+            </div>
+            {gridData.subdivision > 1 && (
+              <div className="legend-item">
+                <span style={{ color: '#ffaa30', fontWeight: 600 }}>{gridData.subdivision}×</span>
+                &nbsp;subdivision ({gridData.sub_tactus_ms}ms → {gridData.tactus_ms}ms)
+              </div>
+            )}
+            <div className="legend-item" style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, marginTop: 4 }}>
+              {gridData.barlines?.filter(b => b.snapped).length}/{gridData.barlines?.length} barlines snapped
+            </div>
+          </>
+        ) : <div style={{ color: 'rgba(255,255,255,0.4)' }}>No grid data loaded</div>}
+      </>
+    );
     return (
       <>
         <h3>Phase 2 — Voice Threading</h3>
@@ -399,6 +524,7 @@ export default function ETMEVisualizer() {
     { id: 'raw', label: 'Piano Roll', color: 'var(--accent-blue)' },
     { id: 'phase1', label: 'Phase 1 — Harmonic Regimes', color: 'var(--accent-green)' },
     { id: 'phase2', label: 'Phase 2 — Voice Threading', color: 'var(--accent-pink)' },
+    { id: 'phase3a', label: 'Phase 3A — Macro-Meter', color: '#ffd640' },
   ];
 
   return (

@@ -1,0 +1,64 @@
+{
+  "source_file": "visualizer/public/etme_chunk2_fifths_hybrid_0.5.json",
+  "sub_tactus_ms": 500,
+  "tactus_ms": 500,
+  "subdivision": 1,
+  "bpm_tactus": 120,
+  "measure_ms": 1000,
+  "beats_per_measure": 2,
+  "denominator": 4,
+  "time_signature": "2/4",
+  "meter_type": "simple_duple",
+  "spike_count": 12,
+  "barlines": [
+    {
+      "measure": 1,
+      "time_ms": 0,
+      "snapped": true,
+      "drift_ms": 0,
+      "source": "spike"
+    },
+    {
+      "measure": 2,
+      "time_ms": 1000,
+      "snapped": true,
+      "drift_ms": 0,
+      "source": "spike"
+    },
+    {
+      "measure": 3,
+      "time_ms": 1875,
+      "snapped": true,
+      "drift_ms": -125,
+      "source": "spike"
+    },
+    {
+      "measure": 4,
+      "time_ms": 3000,
+      "snapped": true,
+      "drift_ms": 125,
+      "source": "spike"
+    },
+    {
+      "measure": 5,
+      "time_ms": 4000,
+      "snapped": true,
+      "drift_ms": 0,
+      "source": "spike"
+    },
+    {
+      "measure": 6,
+      "time_ms": 4832,
+      "snapped": true,
+      "drift_ms": -168,
+      "source": "spike"
+    },
+    {
+      "measure": 7,
+      "time_ms": 5832,
+      "snapped": false,
+      "drift_ms": 0,
+      "source": "dead_reckoning"
+    }
+  ]
+}
