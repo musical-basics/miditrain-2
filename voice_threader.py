@@ -139,8 +139,20 @@ class VoiceThreader:
                     if thread.last_pitch is None or chord[0].onset >= (thread.last_end_time - self.LEGATO_GRACE_MS):
                         available_threads.append(thread)
 
-                # Sort available threads by voice_id (V1 first = soprano)
+                # Outside-in assignment order: V1 → V4 → V2 → V3
+                # Ensures outer bounding voices (soprano/bass) fill first,
+                # so a 2-note chord gets V1 + V4, not V1 + V2.
                 available_threads.sort(key=lambda t: t.voice_id)
+                if len(available_threads) >= 2:
+                    reordered = []
+                    lo, hi = 0, len(available_threads) - 1
+                    while lo <= hi:
+                        reordered.append(available_threads[lo])
+                        if lo != hi:
+                            reordered.append(available_threads[hi])
+                        lo += 1
+                        hi -= 1
+                    available_threads = reordered
 
                 for ci, p in enumerate(chord):
                     is_structural = self._is_phase1_anchor(p, regime_frames)
