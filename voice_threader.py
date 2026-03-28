@@ -100,16 +100,26 @@ class VoiceThreader:
             cost_momentum = self.W_MOMENTUM_PENALTY
 
         # 5. REGISTER GRAVITY (Restoring Force)
-        # Prevents Voice 4 from climbing an arpeggio and staying in Voice 2's territory.
-        cost_register = abs(p.pitch - thread.ideal_pitch) * self.W_REGISTER
+        # Prevents internal voices (2 & 3) from wandering aimlessly. 
+        # Outer boundaries (1 & 4) possess no internal register bounds because they represent the infinite envelope.
+        cost_register = 0.0
+        if thread.voice_id != 0 and thread.voice_id != self.max_voices - 1:
+            cost_register = abs(p.pitch - thread.ideal_pitch) * self.W_REGISTER
+            
         # Top/Bottom structural bounds retain their elasticity, but non-structural inner voices invading the boundaries are severely punished
         if is_top and thread.voice_id != 0:
             if thread.last_pitch != p.pitch:
                 cost_register += 20.0
+        elif is_top and thread.voice_id == 0:
+            # Reward the Soprano string slightly for maintaining the melodic top-line, enforcing bounds capture
+            cost_register -= 15.0
             
         if is_bottom and thread.voice_id != self.max_voices - 1:
             if thread.last_pitch != p.pitch:
                 cost_register += 20.0
+        elif is_bottom and thread.voice_id == self.max_voices - 1:
+            # Reward the Bass string slightly for maintaining the structural fundamental
+            cost_register -= 15.0
 
         # 6. MACRO-GRAVITY
         cost_gravity = 0.0

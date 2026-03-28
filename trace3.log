@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/Users/lionelyu/Documents/New Version/miditrain-2/test_chunk1.py", line 3, in <module>
+    from export_etme_data import midi_to_particles, load_and_detect_regimes
+ImportError: cannot import name 'load_and_detect_regimes' from 'export_etme_data' (/Users/lionelyu/Documents/New Version/miditrain-2/export_etme_data.py)

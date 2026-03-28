@@ -1,0 +1,4 @@
+  File "/Users/lionelyu/Documents/New Version/miditrain-2/test_paradox.py", line 20
+    spec = importlib.util.spec_from_file_location(\"voice_threader\", \"voice_threader_paradox.py\")
+                                                   ^
+SyntaxError: unexpected character after line continuation character

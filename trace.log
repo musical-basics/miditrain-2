@@ -1,0 +1,849 @@
+Loading MIDI: pathetique_2_test.mid
+  Angle map: dissonance, Break method: centroid, Jaccard: 0.5
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 21 harmonic regimes (after consolidation)
+    Stable: 11
+    TRANSITION SPIKE!: 10
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_dissonance_centroid.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: dissonance, Break method: histogram, Jaccard: 0.5
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 22 harmonic regimes (after consolidation)
+    Stable: 11
+    TRANSITION SPIKE!: 11
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_dissonance_histogram.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: dissonance, Break method: hybrid, Jaccard: 0.3
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 20 harmonic regimes (after consolidation)
+    Stable: 10
+    TRANSITION SPIKE!: 10
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_dissonance_hybrid_0.3.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: dissonance, Break method: hybrid, Jaccard: 0.5
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 20 harmonic regimes (after consolidation)
+    Stable: 10
+    TRANSITION SPIKE!: 10
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_dissonance_hybrid_0.5.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: dissonance, Break method: hybrid, Jaccard: 0.7
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 22 harmonic regimes (after consolidation)
+    Stable: 11
+    TRANSITION SPIKE!: 11
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_dissonance_hybrid_0.7.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: dissonance, Break method: hybrid_split, Jaccard: 0.3
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 20 harmonic regimes (after consolidation)
+    Stable: 10
+    TRANSITION SPIKE!: 10
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_dissonance_hybrid_split_0.3.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: dissonance, Break method: hybrid_split, Jaccard: 0.5
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 20 harmonic regimes (after consolidation)
+    Stable: 10
+    TRANSITION SPIKE!: 10
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_dissonance_hybrid_split_0.5.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: dissonance, Break method: hybrid_split, Jaccard: 0.7
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 22 harmonic regimes (after consolidation)
+    Stable: 11
+    TRANSITION SPIKE!: 11
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_dissonance_hybrid_split_0.7.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: fifths, Break method: centroid, Jaccard: 0.5
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 18 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 9
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 4: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_fifths_centroid.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: fifths, Break method: histogram, Jaccard: 0.5
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 18 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 9
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_fifths_histogram.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: fifths, Break method: hybrid, Jaccard: 0.3
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 18 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 9
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_fifths_hybrid_0.3.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: fifths, Break method: hybrid, Jaccard: 0.5
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 18 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 9
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_fifths_hybrid_0.5.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: fifths, Break method: hybrid, Jaccard: 0.7
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 18 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 9
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_fifths_hybrid_0.7.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: fifths, Break method: hybrid_split, Jaccard: 0.3
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 18 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 9
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_fifths_hybrid_split_0.3.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: fifths, Break method: hybrid_split, Jaccard: 0.5
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 18 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 9
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_fifths_hybrid_split_0.5.json
+
+==================================================
+
+Loading MIDI: pathetique_2_test.mid
+  Angle map: fifths, Break method: hybrid_split, Jaccard: 0.7
+  Loaded 52 particles, 32 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 18 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 9
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 49 notes
+  Voice 2: 2 notes
+  Voice 3: 1 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk1_fifths_hybrid_split_0.7.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: dissonance, Break method: centroid, Jaccard: 0.5
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 22 harmonic regimes (after consolidation)
+    Stable: 11
+    TRANSITION SPIKE!: 11
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_dissonance_centroid.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: dissonance, Break method: histogram, Jaccard: 0.5
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 25 harmonic regimes (after consolidation)
+    Stable: 12
+    TRANSITION SPIKE!: 13
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_dissonance_histogram.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: dissonance, Break method: hybrid, Jaccard: 0.3
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 24 harmonic regimes (after consolidation)
+    Stable: 12
+    TRANSITION SPIKE!: 12
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_dissonance_hybrid_0.3.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: dissonance, Break method: hybrid, Jaccard: 0.5
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 24 harmonic regimes (after consolidation)
+    Stable: 12
+    TRANSITION SPIKE!: 12
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_dissonance_hybrid_0.5.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: dissonance, Break method: hybrid, Jaccard: 0.7
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 24 harmonic regimes (after consolidation)
+    Stable: 12
+    TRANSITION SPIKE!: 12
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_dissonance_hybrid_0.7.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: dissonance, Break method: hybrid_split, Jaccard: 0.3
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 24 harmonic regimes (after consolidation)
+    Stable: 11
+    TRANSITION SPIKE!: 13
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_dissonance_hybrid_split_0.3.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: dissonance, Break method: hybrid_split, Jaccard: 0.5
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 24 harmonic regimes (after consolidation)
+    Stable: 11
+    TRANSITION SPIKE!: 13
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_dissonance_hybrid_split_0.5.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: dissonance, Break method: hybrid_split, Jaccard: 0.7
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 26 harmonic regimes (after consolidation)
+    Stable: 11
+    TRANSITION SPIKE!: 15
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_dissonance_hybrid_split_0.7.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: fifths, Break method: centroid, Jaccard: 0.5
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 18 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 9
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 2 notes
+  Voice 3: 5 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_fifths_centroid.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: fifths, Break method: histogram, Jaccard: 0.5
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 19 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 10
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 1 notes
+  Voice 2: 1 notes
+  Voice 3: 5 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_fifths_histogram.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: fifths, Break method: hybrid, Jaccard: 0.3
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 20 harmonic regimes (after consolidation)
+    Stable: 10
+    TRANSITION SPIKE!: 10
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_fifths_hybrid_0.3.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: fifths, Break method: hybrid, Jaccard: 0.5
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 21 harmonic regimes (after consolidation)
+    Stable: 10
+    TRANSITION SPIKE!: 11
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_fifths_hybrid_0.5.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: fifths, Break method: hybrid, Jaccard: 0.7
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 21 harmonic regimes (after consolidation)
+    Stable: 10
+    TRANSITION SPIKE!: 11
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_fifths_hybrid_0.7.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: fifths, Break method: hybrid_split, Jaccard: 0.3
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 22 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 13
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_fifths_hybrid_split_0.3.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: fifths, Break method: hybrid_split, Jaccard: 0.5
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 23 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 14
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_fifths_hybrid_split_0.5.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk2.mid
+  Angle map: fifths, Break method: hybrid_split, Jaccard: 0.7
+  Loaded 69 particles, 43 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 23 harmonic regimes (after consolidation)
+    Stable: 9
+    TRANSITION SPIKE!: 14
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 62 notes
+  Voice 1: 4 notes
+  Voice 3: 3 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk2_fifths_hybrid_split_0.7.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: dissonance, Break method: centroid, Jaccard: 0.5
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 55 harmonic regimes (after consolidation)
+    Stable: 28
+    TRANSITION SPIKE!: 27
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_dissonance_centroid.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: dissonance, Break method: histogram, Jaccard: 0.5
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 31 harmonic regimes (after consolidation)
+    Stable: 16
+    TRANSITION SPIKE!: 15
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_dissonance_histogram.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: dissonance, Break method: hybrid, Jaccard: 0.3
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 41 harmonic regimes (after consolidation)
+    Stable: 21
+    TRANSITION SPIKE!: 20
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_dissonance_hybrid_0.3.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: dissonance, Break method: hybrid, Jaccard: 0.5
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 41 harmonic regimes (after consolidation)
+    Stable: 21
+    TRANSITION SPIKE!: 20
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_dissonance_hybrid_0.5.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: dissonance, Break method: hybrid, Jaccard: 0.7
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 49 harmonic regimes (after consolidation)
+    Stable: 25
+    TRANSITION SPIKE!: 24
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_dissonance_hybrid_0.7.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: dissonance, Break method: hybrid_split, Jaccard: 0.3
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 40 harmonic regimes (after consolidation)
+    Stable: 20
+    TRANSITION SPIKE!: 20
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_dissonance_hybrid_split_0.3.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: dissonance, Break method: hybrid_split, Jaccard: 0.5
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 46 harmonic regimes (after consolidation)
+    Stable: 23
+    TRANSITION SPIKE!: 23
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_dissonance_hybrid_split_0.5.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: dissonance, Break method: hybrid_split, Jaccard: 0.7
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 83 harmonic regimes (after consolidation)
+    Stable: 28
+    TRANSITION SPIKE!: 55
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_dissonance_hybrid_split_0.7.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: fifths, Break method: centroid, Jaccard: 0.5
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 49 harmonic regimes (after consolidation)
+    Stable: 25
+    TRANSITION SPIKE!: 24
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_fifths_centroid.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: fifths, Break method: histogram, Jaccard: 0.5
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 35 harmonic regimes (after consolidation)
+    Stable: 18
+    TRANSITION SPIKE!: 17
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_fifths_histogram.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: fifths, Break method: hybrid, Jaccard: 0.3
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 47 harmonic regimes (after consolidation)
+    Stable: 24
+    TRANSITION SPIKE!: 23
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_fifths_hybrid_0.3.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: fifths, Break method: hybrid, Jaccard: 0.5
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 49 harmonic regimes (after consolidation)
+    Stable: 25
+    TRANSITION SPIKE!: 24
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_fifths_hybrid_0.5.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: fifths, Break method: hybrid, Jaccard: 0.7
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 49 harmonic regimes (after consolidation)
+    Stable: 25
+    TRANSITION SPIKE!: 24
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_fifths_hybrid_0.7.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: fifths, Break method: hybrid_split, Jaccard: 0.3
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 46 harmonic regimes (after consolidation)
+    Stable: 23
+    TRANSITION SPIKE!: 23
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_fifths_hybrid_split_0.3.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: fifths, Break method: hybrid_split, Jaccard: 0.5
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 52 harmonic regimes (after consolidation)
+    Stable: 26
+    TRANSITION SPIKE!: 26
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_fifths_hybrid_split_0.5.json
+
+==================================================
+
+Loading MIDI: pathetique_test_chunk3.mid
+  Angle map: fifths, Break method: hybrid_split, Jaccard: 0.7
+  Loaded 507 particles, 159 keyframes
+Running Phase 1: Harmonic Regime Detector (Limbo V2.2)...
+  Detected 83 harmonic regimes (after consolidation)
+    Stable: 28
+    TRANSITION SPIKE!: 55
+Running Phase 2: Thermodynamic Voice Threading...
+  Overflow (Chord): 337 notes
+  Voice 1: 11 notes
+  Voice 2: 59 notes
+  Voice 3: 59 notes
+  Voice 4: 41 notes
+Computing per-note chord colors (truncating past regimes)...
+
+✅ Analysis exported to: visualizer/public/etme_chunk3_fifths_hybrid_split_0.7.json
+
+==================================================
+
