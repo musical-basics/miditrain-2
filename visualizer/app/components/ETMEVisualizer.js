@@ -195,53 +195,55 @@ export default function ETMEVisualizer() {
     }
 
     // Phase 1: Regime blocks — paint background using the TRUE average chord hue from notes
-    if (currentView === 'phase1') {
+    if (currentView === 'phase1' || currentView === 'phase3a') {
+      const regimeAlpha = currentView === 'phase3a' ? 0.45 : 1.0; // reduced opacity in phase3a so barlines dominate
+
       for (const r of regimes) {
         const x = r.start_time * effectiveScale;
         const w = Math.max((r.end_time - r.start_time) * effectiveScale, 1);
 
-        // Use the regime's own hue/saturation from the detector
         const avgHue = r.hue || 0;
         const avgSat = r.saturation || 0;
 
-        // Background fill: regime's harmonic color, very faint
+        // Background fill — scaled by regimeAlpha so it steps back in phase3a
         if (r.state === 'Silence' || r.state === 'Undefined / Gray Void') {
-          ctx.fillStyle = 'rgba(30,30,40,0.15)';
+          ctx.fillStyle = `rgba(30,30,40,${0.15 * regimeAlpha})`;
         } else {
-          ctx.fillStyle = `hsla(${avgHue}, ${Math.min(avgSat, 80)}%, 45%, 0.06)`;
+          ctx.fillStyle = `hsla(${avgHue}, ${Math.min(avgSat, 80)}%, 45%, ${0.06 * regimeAlpha})`;
         }
         ctx.fillRect(x, 0, w, rollH);
 
-        // Vertical separator line in the same hue
-        ctx.strokeStyle = `hsla(${avgHue}, ${Math.min(avgSat, 70)}%, 55%, 0.15)`;
+        // Vertical separator
+        ctx.strokeStyle = `hsla(${avgHue}, ${Math.min(avgSat, 70)}%, 55%, ${0.15 * regimeAlpha})`;
         ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, rollH); ctx.stroke();
 
-        // Thin 3px state indicator bar at the very top
+        // State indicator bar at top
         let stateColor, stateLabel;
         if (r.state === 'TRANSITION SPIKE!') {
-          stateColor = `hsla(60, 95%, 60%, 0.8)`;
+          stateColor = `hsla(60, 95%, 60%, ${0.8 * regimeAlpha})`;
           stateLabel = '⚡ Spike';
         } else if (r.state === 'Regime Locked') {
-          stateColor = `hsla(120, 80%, 50%, 0.8)`;
+          stateColor = `hsla(120, 80%, 50%, ${0.8 * regimeAlpha})`;
           stateLabel = '🔒 Locked';
         } else if (r.state === 'Silence' || r.state === 'Undefined / Gray Void') {
-          stateColor = `rgba(80, 80, 100, 0.4)`;
+          stateColor = `rgba(80, 80, 100, ${0.4 * regimeAlpha})`;
           stateLabel = r.state === 'Silence' ? 'Silence' : 'Void';
         } else {
-          stateColor = `hsla(${avgHue}, 70%, 55%, 0.6)`;
+          stateColor = `hsla(${avgHue}, 70%, 55%, ${0.6 * regimeAlpha})`;
           stateLabel = 'Stable';
         }
         ctx.fillStyle = stateColor;
         ctx.fillRect(x, 0, w, 3);
 
-        // Label
-        if (w > 30) {
+        // Label (only in phase1 full view — too cluttered in phase3a with barlines)
+        if (w > 30 && currentView === 'phase1') {
           ctx.font = '9px Inter';
           ctx.fillStyle = stateColor;
           ctx.fillText(stateLabel, x + 4, 14);
         }
       }
+
     }
 
     // Draw notes
