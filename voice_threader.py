@@ -30,7 +30,7 @@ class VoiceThreader:
         self.W_TEMPERATURE = 2.0      # Cost per second of silence/cooling (Δt)
         self.W_MOMENTUM_PENALTY = 2.0 # Cost to abruptly reverse trajectory
         self.W_GRAVITY = -15.0        # Discount for aligning with Phase 1 Anchors
-        self.W_SPAWN_PENALTY = 15.0   # Cost to initialize an empty thread
+        self.W_SPAWN_PENALTY = 40.0   # Cost to initialize an empty thread
         self.W_REGISTER = 0.75        # Restoring force pulling threads back to their ideal lane
         self.W_COLLISION = 10.0       # Soft Pauli exclusion for pedal overlaps
 
