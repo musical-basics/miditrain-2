@@ -47,7 +47,7 @@ class HarmonicRegimeDetector:
                         or 'hybrid' (centroid + Jaccard set overlap).
     """
 
-    def __init__(self, break_angle=40.0, min_break_mass=0.8, merge_angle=25.0,
+    def __init__(self, break_angle=40.0, min_break_mass=0.8, merge_angle=20.0,
                  angle_map='dissonance', break_method='centroid', debounce_ms=100):
         self.break_angle = break_angle
         self.min_break_mass = min_break_mass
@@ -117,7 +117,7 @@ class HarmonicRegimeDetector:
         union = len(set_a | set_b)
         return intersection / union if union > 0 else 0.0
 
-    def _should_break(self, anchor_particles, combined_pending, diff, pmass, is_subset=False):
+    def _should_break(self, anchor_particles, combined_pending, diff, pmass, is_subset=False, jaccard=1.0):
         """Determine if a regime break should occur based on the chosen method."""
         if pmass <= self.min_break_mass:
             return False
@@ -143,9 +143,6 @@ class HarmonicRegimeDetector:
                 return True
                 
             # 3. Set Divergence Rule
-            set_a = self._get_dominant_pcs(anchor_particles)
-            set_b = self._get_dominant_pcs(combined_pending)
-            jaccard = self._jaccard_similarity(set_a, set_b)
             return jaccard < 0.5
 
         return diff > self.break_angle  # fallback
@@ -231,11 +228,17 @@ class HarmonicRegimeDetector:
             # Check subset rules to evaluate resolutions and suppress false limbos
             is_subset_anchor = False
             is_subset_spike = False
+            jaccard = 1.0
             
             if self.break_method in ('hybrid', 'histogram'):
                 set_pending = self._get_dominant_pcs(combined_pending)
                 set_anchor = self._get_dominant_pcs(anchor_particles)
                 is_subset_anchor = bool(set_pending and set_pending.issubset(set_anchor))
+                
+                if set_pending and set_anchor:
+                    jaccard = len(set_pending.intersection(set_anchor)) / len(set_pending.union(set_anchor))
+                elif set_pending and not set_anchor:
+                    jaccard = 0.0
                 
                 if pending_spike_frames:
                     # Construct pseudo-particles for the accumulated pending spike
@@ -257,7 +260,7 @@ class HarmonicRegimeDetector:
 
             # ─── CASE 1: REGIME BREAK (OR PENDING SPIKE) ────────
             # Note: _should_break uses is_subset_anchor to suppress initial breaks
-            if self._should_break(anchor_particles, combined_pending, diff, pmass, is_subset_anchor) or \
+            if self._should_break(anchor_particles, combined_pending, diff, pmass, is_subset_anchor, jaccard) or \
                (pending_spike_frames and not can_merge):
                 
                 # Tension is initiated or continuing
